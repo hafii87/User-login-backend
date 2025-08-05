@@ -1,17 +1,19 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const app = express();
 const port = 5000;
 
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/protected', (req, res) => {
+  res.send('Welcome to the User Login API');
+});
 
 const userRoutes = require('./routes/userroutes');
 app.use('/api/users', userRoutes);
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
