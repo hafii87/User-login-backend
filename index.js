@@ -1,8 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const app = express();
 const port = 5000;
+
+const connectDB = require('./config/db');
+const app = express();
+connectDB();
 
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
