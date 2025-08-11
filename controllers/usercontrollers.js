@@ -38,7 +38,7 @@ const registerUser = async (req, res) => {
       message: 'User registered successfully',
       user: {
         _id: newUser._id,
-        username: newUser.name,
+        username: newUser.username,
         email: newUser.email
       }
     });
@@ -65,7 +65,7 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const token = jwt.sign(
-      { id: existingUser._id, name: existingUser.name, email: existingUser.email },process.env.JWT_SECRET,  { expiresIn: '1h' }
+      { id: existingUser._id, name: existingUser.username, email: existingUser.email },process.env.JWT_SECRET,  { expiresIn: '1h' }
     );
     res.cookie('token', token, { httpOnly: true });
     res.json({ message: 'Login successful', token });
@@ -114,6 +114,7 @@ const deleteUserAccount = async (req, res) => {
     res.status(500).json({ message: 'Error deleting user', error: err.message });
   }
 };
+
 
 module.exports = {
   getUserInfo,
