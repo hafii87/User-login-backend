@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authenticate = require('../middleware/verifytoken');
+const { authenticate , protect } = require('../middleware/verifytoken'); 
 
 const {
   getUserInfo,
