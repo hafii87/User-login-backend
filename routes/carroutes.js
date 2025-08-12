@@ -7,13 +7,12 @@ const {  getCarInfo,
   addCar,
   viewCar,
   updateCar,
-  deleteCar
-} = require('../controllers/carcontrollers');
+  deleteCar } = require('../controllers/carcontrollers');
 
 router.get('/', authenticate, getCarInfo);
 router.post('/', authenticate, addCar);
 router.get('/:id', authenticate, viewCar);
-router.put('/:id', authenticate, updateCar)
+router.put('/:id', authenticate, updateCar);
 router.delete('/:id', authenticate, deleteCar);
 
 module.exports = router;
