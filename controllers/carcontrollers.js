@@ -17,11 +17,11 @@ const getCarInfo = async (req, res) => {
 const addCar = async (req, res) => {
   try {
     console.log("Inside addCar, req.user:", req.user);
+
     if (!req.user || !req.user.id) {
-      return res.status(400).json({ message: 'User info missing (req.user.id not found)' });
+      return res.status(401).json({ message: 'User info missing (req.user.id not found)' });
     }
 
-    const ownerId = mongoose.Types.ObjectId(req.user.id);
     const { make, model, year, price } = req.body;
 
     if (!make || !model || !year || !price) {
@@ -29,7 +29,7 @@ const addCar = async (req, res) => {
     }
 
     const newCar = new Car({
-      owner: ownerId,
+      owner: req.user.id,  
       make,
       model,
       year,
@@ -52,6 +52,7 @@ const addCar = async (req, res) => {
   }
 };
 
+
 const viewCar = async (req, res) => {
   try {
   
@@ -69,17 +70,22 @@ const viewCar = async (req, res) => {
 };
 
 const updateCar = async (req, res) => {
-  const { make, model, year, price } = req.body;
+  const { make, model, year, price, deletedAt } = req.body; 
   try {
-    
+    const updatedFields = { make, model, year, price };
+
+    if (deletedAt) updatedFields.deletedAt = new Date(deletedAt);
+
     const car = await Car.findOneAndUpdate(
       { _id: req.params.id, owner: req.user.id, isDeleted: false },
-      { make, model, year, price },
+      updatedFields,
       { new: true }
     );
+
     if (!car) {
       return res.status(404).json({ message: 'Car not found or unauthorized' });
     }
+
     res.status(200).json({
       message: 'Car updated successfully',
       car,
@@ -88,6 +94,7 @@ const updateCar = async (req, res) => {
     res.status(500).json({ message: 'Error updating car', error: error.message });
   }
 };
+
 
 const deleteCar = async (req, res) => {
   try {
