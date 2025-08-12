@@ -1,15 +1,34 @@
 const mongoose = require('mongoose');
-const carSchema = new mongoose.Schema({
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },  
-  make: { type: String, required: true },
-  model: { type: String, required: true },
-  year: { type: Number, required: true },
-  price: { type: Number, required: true },
 
+const carSchema = new mongoose.Schema({
+  owner: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: [true, 'Car owner is required'] 
+  },  
+  make: { 
+    type: String, 
+    required: [true, 'Car make is required'], 
+    trim: true 
+  },
+  model: { 
+    type: String, 
+    required: [true, 'Car model is required'], 
+    trim: true 
+  },
+  year: { 
+    type: Number, 
+    required: [true, 'Car year is required'], 
+    min: [1886, 'Year must be valid'] 
+  },
+  price: { 
+    type: Number, 
+    required: [true, 'Car price is required'], 
+    min: [0, 'Price cannot be negative'] 
+  },
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date },
   deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-const Car = mongoose.model('Car', carSchema);
-module.exports = Car;
+module.exports = mongoose.model('Car', carSchema);

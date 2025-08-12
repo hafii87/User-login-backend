@@ -37,7 +37,7 @@ const registerUser = async (req, res) => {
     res.status(201).json({
       message: 'User registered successfully',
       user: {
-        _id: newUser._id,
+        id: newUser._id,          
         username: newUser.username,
         email: newUser.email
       }
@@ -48,29 +48,36 @@ const registerUser = async (req, res) => {
   }
 };
 
-
 const loginUser = async (req, res) => {
-  const { error } = loginSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({ message: 'Invalid login data', error: error.details });
-  }
   const { email, password } = req.body;
+
   try {
-    const existingUser = await User.findOne({ email });
-    if (!existingUser) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid email or password' });
     }
-    const isMatch = await bcrypt.compare(password, existingUser.password);
+
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid email or password' });
     }
+
     const token = jwt.sign(
-      { id: existingUser._id, name: existingUser.username, email: existingUser.email },process.env.JWT_SECRET,  { expiresIn: '1h' }
+      {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
     );
-    res.cookie('token', token, { httpOnly: true });
-    res.json({ message: 'Login successful', token });
-  } catch (err) {
-    res.status(500).json({ message: 'Error logging in', error: err.message });
+
+    res.json({
+      message: 'Login successful',
+      token
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error logging in', error: error.message });
   }
 };
 
@@ -114,7 +121,6 @@ const deleteUserAccount = async (req, res) => {
     res.status(500).json({ message: 'Error deleting user', error: err.message });
   }
 };
-
 
 module.exports = {
   getUserInfo,
