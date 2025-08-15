@@ -1,16 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/verifytoken'); 
+
+const { authenticate } = require('../middleware/verifyToken');
+
 const {
-  getCarInfo,
+  getCarsWithOwners,
   addCar,
   viewCar,
   updateCar,
   deleteCar,
-} = require('../controllers/carcontrollers');
+} = require('../controllers/carController');
 
+
+router.get('/', authenticate, getCarsWithOwners);
 router.post('/', authenticate, addCar);
-router.get('/', authenticate, getCarInfo);
 router.get('/:id', authenticate, viewCar);
 router.put('/:id', authenticate, updateCar);
 router.delete('/:id', authenticate, deleteCar);
