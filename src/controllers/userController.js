@@ -41,6 +41,7 @@ const logoutUser = async (req, res) => {
   }
 };
 
+
 const updateUserProfile = async (req, res) => {
   try {
     const updatedUser = await userService.updateUserProfile(req.user._id, req.body);
@@ -50,6 +51,7 @@ const updateUserProfile = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 const deleteUserAccount = async (req, res) => {
   try {

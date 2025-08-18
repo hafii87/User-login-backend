@@ -11,11 +11,12 @@ const {
   deleteUserAccount,
 } = require('../controllers/userController');
 
-router.get('/', authenticate, getUserWithCars);
+
+router.get('/profile', authenticate, getUserWithCars);
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', authenticate, logoutUser);
-router.put('/:id', authenticate, updateUserProfile);
-router.delete('/:id', authenticate, deleteUserAccount);
+router.put('/update/:id', authenticate, updateUserProfile);
+router.delete('/delete/:id', authenticate, deleteUserAccount);
 
 module.exports = router;

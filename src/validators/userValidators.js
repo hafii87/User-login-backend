@@ -17,7 +17,6 @@ const updateProfileSchema = Joi.object({
   password: Joi.string().min(6).optional(),
 });
 
-
 module.exports = {
   registerSchema,
   loginSchema,
