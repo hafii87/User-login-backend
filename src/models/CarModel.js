@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { type } = require('../validators/carValidators');
 
 const carSchema = new mongoose.Schema({
   owner: {
@@ -26,6 +27,16 @@ const carSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Car price is required'],
     min: [0, 'Price cannot be negative']
+  },
+  isActive: { 
+    type: Boolean, 
+    default: true, 
+    description: 'Car is enabled/disabled by owner' 
+  },
+  isAvailable: { 
+    type: Boolean, 
+    default: true, 
+    description: 'Car available for rent or not' 
   },
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date },
