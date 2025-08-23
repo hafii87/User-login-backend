@@ -29,4 +29,4 @@ const validateBooking = (req, res, next) => {
   next();
 };
 
-module.exports = validateBooking;
+module.exports = { validateBooking, bookingSchema };

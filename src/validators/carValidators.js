@@ -52,5 +52,5 @@ const validateCar = (req, res, next) => {
 
 module.exports = {
   carSchema,
-  validateCar,
+  validateCar
 };

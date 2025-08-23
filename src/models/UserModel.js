@@ -6,4 +6,12 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true }
 }, { timestamps: true });
 
+userSchema.virtual('cars', {
+  ref: 'Car',
+  localField: '_id',
+  foreignField: 'owner'
+});
+
+userSchema.set('toJSON', { virtuals: true });
+
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);

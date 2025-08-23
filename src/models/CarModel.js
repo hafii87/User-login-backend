@@ -48,6 +48,6 @@ const carSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-const Car = mongoose.models.Car || mongoose.model('Car', carSchema);
+const Car = mongoose.model('Car', carSchema);
 
 module.exports = Car;
