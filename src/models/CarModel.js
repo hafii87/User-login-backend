@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { type } = require('../validators/carValidators');
 
 const carSchema = new mongoose.Schema({
   owner: {
@@ -13,7 +12,7 @@ const carSchema = new mongoose.Schema({
     trim: true
   },
   model: {
-    type: String,
+    type: String, 
     required: [true, 'Car model is required'],
     trim: true
   },
@@ -30,17 +29,25 @@ const carSchema = new mongoose.Schema({
   },
   isActive: { 
     type: Boolean, 
-    default: true, 
-    description: 'Car is enabled/disabled by owner' 
+    default: true 
   },
   isAvailable: { 
     type: Boolean, 
-    default: true, 
-    description: 'Car available for rent or not' 
+    default: true 
   },
-  isDeleted: { type: Boolean, default: false },
-  deletedAt: { type: Date },
-  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  isDeleted: { 
+    type: Boolean, 
+    default: false 
+  },
+  deletedAt: { 
+    type: Date 
+  },
+  deletedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Car', carSchema);
+const Car = mongoose.models.Car || mongoose.model('Car', carSchema);
+
+module.exports = Car;

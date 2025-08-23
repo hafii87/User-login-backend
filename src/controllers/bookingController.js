@@ -1,11 +1,11 @@
 const bookingService = require('../services/bookingService');
+const { AppError } = require('../middleware/errorhandler');
 
-const bookCar = async (req, res) => {
+const bookCar = async (req, res, next) => {
   try {
     const { carId, startTime, endTime } = req.body;
-
     if (!carId || !startTime || !endTime) {
-      return res.status(400).json({ success: false, message: 'carId, startTime, and endTime are required' });
+      return next(new AppError('carId, startTime, and endTime are required', 400));
     }
 
     const booking = await bookingService.bookCar(
@@ -17,35 +17,38 @@ const bookCar = async (req, res) => {
 
     res.status(201).json({ success: true, data: booking });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    next(new AppError(error.message, 400));
   }
 };
 
-const getUserBookings = async (req, res) => {
+const getUserBookings = async (req, res, next) => {
   try {
     const bookings = await bookingService.getUserBookings(req.user._id);
     res.status(200).json({ success: true, data: bookings });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-const getBookingById = async (req, res) => {
+const getBookingById = async (req, res, next) => {
   try {
     const booking = await bookingService.getBookingById(req.params.id);
+    if (!booking) return next(new AppError('Booking not found', 404));
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
-    res.status(404).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-const cancelBooking = async (req, res) => {
+const cancelBooking = async (req, res, next) => {
   try {
     const cancelledBooking = await bookingService.cancelBooking(req.params.id, req.user._id);
     res.status(200).json({ success: true, data: cancelledBooking });
   } catch (error) {
-    const status = error.message === 'You can only cancel your own bookings' ? 403 : 404;
-    res.status(status).json({ success: false, message: error.message });
+    if (error.message === 'You can only cancel your own bookings') {
+      return next(new AppError(error.message, 403));
+    }
+    next(new AppError(error.message, 404));
   }
 };
 
