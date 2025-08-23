@@ -1,29 +1,61 @@
 const User = require('../models/userModel');
+const { AppError } = require('../middleware/errorhandler');
 
-const createUser = (userData) => {
-  return User.create(userData);
+const createUser = async (userData) => {
+  try {
+    const user = new User(userData);
+    return await user.save();
+  } catch (error) {
+    throw new Error(`Error creating user: ${error.message}`);
+  }
 };
 
-const findByEmail = (email) => {
-  return User.findOne({ email });
+const findByEmail = async (email) => {
+  try {
+    const user = await User.findOne({ email });
+    return user; 
+  } catch (error) {
+    throw new Error(`Database error while finding user by email: ${error.message}`);
+  }
 };
 
-const findById = (id) => {
-  return User.findById(id);
+const findById = async (id) => {
+  try {
+    return await User.findById(id); 
+  } catch (err) {
+    throw new AppError(`Error finding user by ID: ${err.message}`, 500);
+  }
 };
 
-const updateById = (id, updateData) => {
-  return User.findByIdAndUpdate(id, updateData, { new: true });
+const updateById = async (id, updateData) => {
+  try {
+    return await User.findByIdAndUpdate(id, updateData, { new: true });
+  } catch (err) {
+    throw new AppError(`Failed to update user: ${err.message}`, 400);
+  }
 };
 
-const deleteById = (id) => {
-  return User.findByIdAndDelete(id);
+const deleteById = async (id) => {
+  try {
+    return await User.findByIdAndDelete(id);
+  } catch (err) {
+    throw new AppError(`Failed to delete user: ${err.message}`, 400);
+  }
+};
+
+const getUserWithCars = async (userId) => {
+  try {
+    return await User.findById(userId).populate('cars'); 
+  } catch (err) {
+    throw new AppError(`Error fetching user with cars: ${err.message}`, 500);
+  }
 };
 
 module.exports = {
   createUser,
-  findByEmail,
+  findByEmail,    
   findById,
   updateById,
-  deleteById
+  deleteById,
+  getUserWithCars,
 };

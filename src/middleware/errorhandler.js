@@ -1,4 +1,3 @@
-
 class AppError extends Error {
   constructor(message, statusCode) {
     super(message);
@@ -10,7 +9,6 @@ class AppError extends Error {
   }
 }
 
-
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
@@ -21,4 +19,6 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-module.exports = { AppError, errorHandler };
+
+module.exports = errorHandler;
+module.exports.AppError = AppError;

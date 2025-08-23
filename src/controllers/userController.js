@@ -1,65 +1,104 @@
 const userService = require('../services/userService');
+const { AppError } = require('../middleware/errorhandler');
 
-
-const getUserWithCars = async (req, res) => {
+const getUserWithCars = async (req, res, next) => {
   try {
     const userData = await userService.getUserWithCars(req.user._id);
-    res.status(200).json(userData);
+    if (!userData) return next(new AppError('User not found', 404));
+    
+    res.status(200).json({
+      status: 'success',
+      data: userData
+    });
   } catch (error) {
-    console.error("Error fetching user with cars:", error);
-    res.status(500).json({ message: 'Failed to fetch user with cars', error: error.message });
+    next(error);
   }
 };
 
-const registerUser = async (req, res) => {
+const registerUser = async (req, res, next) => {
   try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return next(new AppError('All fields (username, email, password) are required', 400));
+    }
+
     const user = await userService.registerUser(req.body);
-    res.status(201).json(user);
+
+    res.status(201).json({
+      status: 'success',
+      message: 'User registered successfully',
+      data: {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      }
+    });
   } catch (error) {
-    console.error("Error registering user:", error);
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
-const loginUser = async (req, res) => {
+const loginUser = async (req, res, next) => {
   try {
-    const token = await userService.loginUser(req.body);
-    res.status(200).json({ token });
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return next(new AppError('Email and password are required', 400));
+    }
+
+    const { user, token } = await userService.loginUser({ email, password });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      }
+    });
   } catch (error) {
-    console.error("Error logging in:", error);
-    res.status(401).json({ message: error.message });
+    next(error);
   }
 };
 
-const logoutUser = async (req, res) => {
+const logoutUser = async (req, res, next) => {
   try {
-    await userService.logoutUser(req.user._id);
-    res.status(200).json({ message: 'User logged out successfully' });
+    res.status(200).json({
+      status: 'success',
+      message: 'User logged out successfully'
+    });
   } catch (error) {
-    console.error("Error logging out:", error);
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-
-const updateUserProfile = async (req, res) => {
+const updateUserProfile = async (req, res, next) => {
   try {
     const updatedUser = await userService.updateUserProfile(req.user._id, req.body);
-    res.status(200).json(updatedUser);
+    if (!updatedUser) return next(new AppError('User not found', 404));
+
+    res.status(200).json({
+      status: 'success',
+      message: 'User profile updated successfully',
+      data: updatedUser
+    });
   } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
-
-const deleteUserAccount = async (req, res) => {
+const deleteUserAccount = async (req, res, next) => {
   try {
     await userService.deleteUserAccount(req.user._id);
-    res.status(200).json({ message: 'User account deleted successfully' });
+    res.status(200).json({
+      status: 'success',
+      message: 'User account deleted successfully'
+    });
   } catch (error) {
-    console.error("Error deleting account:", error);
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -69,5 +108,5 @@ module.exports = {
   loginUser,
   logoutUser,
   updateUserProfile,
-  deleteUserAccount
+  deleteUserAccount,
 };

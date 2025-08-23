@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { AppError } = require('../middleware');
+const { AppError } = require('../middleware/errorhandler');
 
 const bookingSchema = Joi.object({
   userId: Joi.string().required().messages({
