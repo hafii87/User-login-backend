@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const  authenticate  = require('../middleware/verifyToken');
+const authenticate = require('../middleware/verifyToken');
+const { validateBooking } = require('../validators/bookingValidators'); 
 
 const {
   bookCar,
@@ -9,9 +10,9 @@ const {
   cancelBooking
 } = require('../controllers/bookingController');
 
-router.post('/BookNow', authenticate, bookCar);            
-router.get('/MyBookings', authenticate, getUserBookings);  
-router.get('/ViewBooking/:id', authenticate, getBookingById); 
-router.patch('/CancelBooking/:id', authenticate, cancelBooking); 
+router.post('/BookNow', authenticate, validateBooking, bookCar);
+router.get('/MyBookings', authenticate, getUserBookings);
+router.get('/ViewBooking/:id', authenticate, getBookingById);
+router.patch('/CancelBooking/:id', authenticate, cancelBooking);
 
 module.exports = router;

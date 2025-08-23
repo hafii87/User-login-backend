@@ -2,8 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
+
+const { errorHandler } = require('./src/middleware/errorhandler'); 
 const authenticate = require('./src/middleware/verifyToken');  
-const errorHandler = require('./src/middleware/errorhandler'); 
 
 const userRoutes = require('./src/routes/userRoutes');
 const carRoutes = require('./src/routes/carRoutes');
