@@ -6,9 +6,12 @@ const addCar = async (req, res, next) => {
     if (!req.user?._id) {
       return next(new AppError('User authentication failed', 401));
     }
+    const carData = req.body;
+    if (!carData.make || !carData.model || !carData.year) {
+      return next(new AppError('Please provide all required fields', 400));
+    }
 
-    const car = await carService.addCar(req.body, req.user._id);
-
+    const car = await carService.addCar(carData, req.user._id);
     res.status(201).json({
       success: true,
       message: 'Car added successfully',

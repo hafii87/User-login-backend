@@ -8,11 +8,8 @@ const findOverlapping = async (carId, startTime, endTime) => {
   return await Booking.find({
     car: carId,
     status: 'confirmed',
-    $or: [
-      { startTime: { $lt: endTime, $gte: startTime } },
-      { endTime: { $lte: endTime, $gt: startTime } },
-      { startTime: { $lte: startTime }, endTime: { $gte: endTime } },
-    ],
+    startTime: { $lt: endTime },   
+    endTime: { $gt: startTime },   
   });
 };
 
