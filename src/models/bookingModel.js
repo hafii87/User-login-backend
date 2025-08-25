@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
-  car: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Car',
-    required: [true, 'Car reference is required']
-  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'Booking user is required']
+  },
+  car: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Car',
+    required: [true, 'Booking car is required']
   },
   startTime: {
     type: Date,
@@ -33,7 +33,6 @@ const bookingSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-bookingSchema.index({ car: 1, startTime: 1, endTime: 1 });
+bookingSchema.index({ user: 1, car: 1, startTime: 1, endTime: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
- 

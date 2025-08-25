@@ -2,30 +2,49 @@ const Joi = require('joi');
 const { AppError } = require('../middleware/errorhandler');
 
 const bookingSchema = Joi.object({
-  userId: Joi.string().required().messages({
-    'any.required': 'User ID is required',
-    'string.empty': 'User ID cannot be empty'
-  }),
-  carId: Joi.string().required().messages({
-    'any.required': 'Car ID is required',
-    'string.empty': 'Car ID cannot be empty'
-  }),
-  startDate: Joi.date().required().messages({
-    'any.required': 'Start date is required',
-    'date.base': 'Start date must be a valid date'
-  }),
-  endDate: Joi.date().greater(Joi.ref('startDate')).required().messages({
-    'any.required': 'End date is required',
-    'date.greater': 'End date must be after start date',
-    'date.base': 'End date must be a valid date'
-  })
+  userId: Joi.string()
+    .regex(/^[0-9a-fA-F]{24}$/)
+    .required()
+    .messages({
+      'any.required': 'User ID is required',
+      'string.empty': 'User ID cannot be empty',
+      'string.pattern.base': 'User ID must be a valid ObjectId'
+    }),
+
+  carId: Joi.string()
+    .regex(/^[0-9a-fA-F]{24}$/)
+    .required()
+    .messages({
+      'any.required': 'Car ID is required',
+      'string.empty': 'Car ID cannot be empty',
+      'string.pattern.base': 'Car ID must be a valid ObjectId'
+    }),
+
+  startTime: Joi.date()
+    .required()
+    .messages({
+      'any.required': 'Start time is required',
+      'date.base': 'Start time must be a valid date'
+    }),
+
+  endTime: Joi.date()
+    .required()
+    .greater(Joi.ref('startTime'))
+    .messages({
+      'any.required': 'End time is required',
+      'date.base': 'End time must be a valid date',
+      'date.greater': 'End time must be after start time'
+    })
 });
 
 const validateBooking = (req, res, next) => {
   const { error } = bookingSchema.validate(req.body, { abortEarly: false });
+
   if (error) {
-    return next(new AppError(error.details.map(d => d.message).join(', '), 400));
+    const message = error.details.map(d => d.message).join(', ');
+    return next(new AppError(message, 400));
   }
+
   next();
 };
 

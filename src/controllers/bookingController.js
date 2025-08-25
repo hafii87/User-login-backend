@@ -1,25 +1,37 @@
 const bookingService = require('../services/bookingService');
-const { AppError, errorHandler } = require('../middleware/errorhandler');
+const { AppError } = require('../middleware/errorhandler');
 
 const bookCar = async (req, res, next) => {
   try {
-    const { carId, startTime, endTime } = req.body;
-    if (!carId || !startTime || !endTime) {
-      return next(new AppError('carId, startTime, and endTime are required', 400));
+    const { carId, userId, startTime, endTime } = req.body;
+
+    if (!carId || !userId || !startTime || !endTime) {
+      return next(
+        new AppError('carId, userId, startTime, and endTime are required', 400)
+      );
     }
 
-    if (!req.user || !req.user._id) {
-      return next(new AppError('User authentication failed', 401));
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new AppError('User not found', 404));
     }
 
-    const booking = await bookingService.bookCar(
-      req.user._id,
+    const car = await Car.findById(carId);
+    if (!car) {
+      return next(new AppError('Car not found', 404));
+    }
+
+
+    const booking = await bookingService.bookCar({
       carId,
-      new Date(startTime),
-      new Date(endTime)
-    );
+      userId,
+      startTime,
+      endTime,
+    });
 
-    res.status(201).json({ success: true, data: booking });
+    res
+      .status(201)
+      .json({ success: true, message: 'Booking created successfully', data: booking });
   } catch (error) {
     next(new AppError(error.message, 400));
   }
@@ -27,11 +39,13 @@ const bookCar = async (req, res, next) => {
 
 const getUserBookings = async (req, res, next) => {
   try {
-    if (!req.user || !req.user._id) {
-      return next(new AppError('User authentication failed', 401));
+    const { userId } = req.query;
+
+    if (!userId) {
+      return next(new AppError('userId is required to fetch bookings', 400));
     }
 
-    const bookings = await bookingService.getUserBookings(req.user._id);
+    const bookings = await bookingService.getUserBookings(userId);
     res.status(200).json({ success: true, data: bookings });
   } catch (error) {
     next(error);
@@ -40,19 +54,9 @@ const getUserBookings = async (req, res, next) => {
 
 const getBookingById = async (req, res, next) => {
   try {
-    if (!req.user || !req.user._id) {
-      return next(new AppError('User authentication failed', 401));
-    }
-
     const booking = await bookingService.getBookingById(req.params.id);
+
     if (!booking) return next(new AppError('Booking not found', 404));
-    
-    const isOwner = String(booking.user._id) === String(req.user._id);
-    const isCarOwner = booking.car && String(booking.car.owner) === String(req.user._id);
-    
-    if (!isOwner && !isCarOwner) {
-      return next(new AppError('Unauthorized to view this booking', 403));
-    }
 
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
@@ -62,12 +66,22 @@ const getBookingById = async (req, res, next) => {
 
 const cancelBooking = async (req, res, next) => {
   try {
-    if (!req.user || !req.user._id) {
-      return next(new AppError('User authentication failed', 401));
+    const { userId } = req.body;
+
+    if (!userId) {
+      return next(new AppError('userId is required to cancel a booking', 400));
     }
 
-    const cancelledBooking = await bookingService.cancelBooking(req.params.id, req.user._id);
-    res.status(200).json({ success: true, data: cancelledBooking });
+    const cancelledBooking = await bookingService.cancelBooking(
+      req.params.id,
+      userId
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: cancelledBooking,
+    });
   } catch (error) {
     if (error.message === 'You can only cancel your own bookings') {
       return next(new AppError(error.message, 403));

@@ -1,4 +1,4 @@
-const carWrapper = require('../wrappers/carWrapper');
+﻿const carWrapper = require('../wrappers/carWrapper');
 const { AppError } = require('../middleware/errorhandler');
 
 const addCar = async (carData, userId) => {
@@ -19,7 +19,7 @@ const updateCar = async (userId, carId, carData) => {
 };
 
 const deleteCar = async (userId, carId) => {
-  return await carWrapper.softDeleteCar(carId, userId, userId);
+  return await carWrapper.softDeleteCar(carId, userId);
 };
 
 module.exports = {
