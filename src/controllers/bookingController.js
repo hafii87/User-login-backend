@@ -5,87 +5,100 @@ const { AppError } = require('../middleware/errorhandler');
 
 const bookCar = async (req, res, next) => {
   try {
-    console.log('Request body:', req.body);
-    console.log('Request user:', req.user);
-    console.log('User ID from token:', req.user?._id);
-    
+    const userId = req.user.id;
+
     const { carId, startTime, endTime } = req.body;
-    const userId = req.user?._id;
 
     if (!userId) {
-      console.log('ERROR: No user ID found in token');
-      return next(new AppError('Authentication failed - no user ID', 401));
+      return next(new AppError('userId is required', 400));
     }
 
-    if (!carId || !startTime || !endTime) {
-      console.log('ERROR: Missing required fields');
-      console.log('carId:', carId, 'startTime:', startTime, 'endTime:', endTime);
-      return next(
-        new AppError('carId, startTime, and endTime are required', 400)
-      );
+    if (!carId) {
+      return next(new AppError('carId is required', 400));
     }
 
-    console.log('All validations passed, calling booking service...');
-
-    const car = await Car.findById(carId);
-    if (!car) {
-      return next(new AppError('Car not found', 404));
+    if (!startTime) {
+      return next(new AppError('startTime is required', 400));
     }
 
-    console.log('Car found:', car.make, car.model);
+    if (!endTime) {
+      return next(new AppError('endTime is required', 400));
+    }
 
     const booking = await bookingService.bookCar(userId, carId, startTime, endTime);
-
-    console.log('Booking created successfully:', booking);
-    console.log('=== BOOKING DEBUG END ===');
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Booking created successfully', 
-      data: booking 
+    res.status(201).json({
+      success: true,
+      message: 'Booking created successfully',
+      data: booking
     });
   } catch (error) {
-    console.error('Error details:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    next(new AppError(error.message, 400));
+    next(new AppError(error.message || 'Failed to create booking', 400));
   }
 };
 
 const getUserBookings = async (req, res, next) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
+    console.log('Fetching bookings for user:', userId);
+    
     const bookings = await bookingService.getUserBookings(userId);
-    res.status(200).json({ success: true, data: bookings });
+    
+    res.status(200).json({ 
+      success: true, 
+      count: bookings.length,
+      data: bookings 
+    });
   } catch (error) {
-    next(error);
+    console.error('Error fetching user bookings:', error.message);
+    next(new AppError(error.message || 'Failed to fetch bookings', 400));
   }
 };
 
 const getBookingById = async (req, res, next) => {
   try {
-    const booking = await bookingService.getBookingById(req.params.id);
-    if (!booking) return next(new AppError('Booking not found', 404));
-    res.status(200).json({ success: true, data: booking });
+    const bookingId = req.params.id;
+    console.log('Fetching booking by ID:', bookingId);
+    
+    const booking = await bookingService.getBookingById(bookingId);
+    if (!booking) {
+      return next(new AppError('Booking not found', 404));
+    }
+    
+    res.status(200).json({ 
+      success: true, 
+      data: booking 
+    });
   } catch (error) {
-    next(error);
+    console.error('Error fetching booking:', error.message);
+    next(new AppError(error.message || 'Failed to fetch booking', 400));
   }
 };
 
 const cancelBooking = async (req, res, next) => {
   try {
-    const userId = req.user._id;
-    const cancelledBooking = await bookingService.cancelBooking(req.params.id, userId);
+    const bookingId = req.params.id;
+    const userId = req.user.id;
+
+    console.log('Cancelling booking:', bookingId, 'for user:', userId);
+    
+    const cancelledBooking = await bookingService.cancelBooking(bookingId, userId);
+    
     res.status(200).json({
       success: true,
       message: 'Booking cancelled successfully',
       data: cancelledBooking,
     });
   } catch (error) {
+    console.error('Error cancelling booking:', error.message);
+    
     if (error.message === 'You can only cancel your own bookings') {
       return next(new AppError(error.message, 403));
     }
-    next(new AppError(error.message, 404));
+    if (error.message === 'Booking not found') {
+      return next(new AppError(error.message, 404));
+    }
+    
+    next(new AppError(error.message || 'Failed to cancel booking', 400));
   }
 };
 
