@@ -1,11 +1,12 @@
-﻿const Car = require('../models/CarModel'); 
+﻿
+const Car = require('../models/CarModel'); 
 
-const addCar = async (carData) => {
+const createCar = async (carData) => {
   try {
     const newCar = new Car(carData);
     return await newCar.save();
   } catch (error) {
-    throw new Error(`Error adding car: ${error.message}`);
+    throw new Error(`Error creating car: ${error.message}`);
   }
 };
 
@@ -19,7 +20,7 @@ const getCarsWithOwners = async () => {
 
 const getCarById = async (id) => {
   try {
-    return await Car.findOne({ id: id, isDeleted: false }).populate('owner', 'username email');
+    return await Car.findOne({ _id: id, isDeleted: false }).populate('owner', 'username email');
   } catch (error) {
     throw new Error(`Error fetching car by ID: ${error.message}`);
   }
@@ -33,10 +34,10 @@ const getCarsByOwner = async (ownerId) => {
   }
 };
 
-const updateCarByOwner = async (id, ownerId, update) => {
+const updateCarByOwner = async (carId, ownerId, update) => {
   try {
     return await Car.findOneAndUpdate(
-      { id: id, owner: ownerId, isDeleted: false },
+      { _id: carId, owner: ownerId, isDeleted: false },
       update,
       { new: true, runValidators: true }
     );
@@ -45,11 +46,15 @@ const updateCarByOwner = async (id, ownerId, update) => {
   }
 };
 
-const softDeleteCar = async (id, ownerId, deletedBy) => {
+const deleteCarByOwner = async (carId, ownerId) => { 
   try {
     return await Car.findOneAndUpdate(
-      { id: id, owner: ownerId, isDeleted: false },
-      { isDeleted: true, deletedAt: new Date(), deletedBy },
+      { _id: carId, owner: ownerId, isDeleted: false },
+      { 
+        isDeleted: true, 
+        deletedAt: new Date(), 
+        deletedBy: ownerId 
+      },
       { new: true }
     );
   } catch (error) {
@@ -58,10 +63,10 @@ const softDeleteCar = async (id, ownerId, deletedBy) => {
 };
 
 module.exports = {
-  addCar,
+  createCar, 
   getCarsWithOwners,
   getCarById,
   getCarsByOwner,
   updateCarByOwner,
-  softDeleteCar,
+  deleteCarByOwner, 
 };

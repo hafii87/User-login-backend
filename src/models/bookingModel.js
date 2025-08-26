@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+const mongoose = require('mongoose'); 
 const bookingSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -31,8 +30,17 @@ const bookingSchema = new mongoose.Schema({
     default: 'confirmed'
   },
   createdAt: { type: Date, default: Date.now }
-}, { timestamps: true });
-
-bookingSchema.index({ user: 1, car: 1, startTime: 1, endTime: 1 });
+}, { 
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    versionKey: false,
+    transform: function (doc, ret) {
+      ret.id = ret._id;
+      delete ret._id;
+    }
+  },
+  toObject: { virtuals: true }
+});
 
 module.exports = mongoose.model('Booking', bookingSchema);
