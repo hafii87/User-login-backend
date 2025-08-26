@@ -52,8 +52,13 @@ const loginUser = async (data) => {
   const isMatch = await bcrypt.compare(data.password, user.password);
   if (!isMatch) throw new AppError('Invalid credentials', 401);
 
-  const payload = { _id: user._id.toString(), username: user.username, email: user.email };
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+  const payload = { 
+    id: user._id.toString(), 
+    _id: user._id.toString(), 
+    username: user.username, 
+    email: user.email 
+  };
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' }); 
 
   return { user, token };
 };

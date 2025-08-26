@@ -1,32 +1,107 @@
 const Booking = require('../models/bookingModel');
 
 const createBooking = async (data) => {
-  return await Booking.create(data);
+  try {
+    const booking = await Booking.create(data);
+    return await Booking.findById(booking._id)
+      .populate('car', 'make model year price')
+      .populate('user', 'username email');
+  } catch (error) {
+    throw new Error(`Error creating booking: ${error.message}`);
+  }
 };
 
 const findOverlapping = async (carId, startTime, endTime) => {
-  return await Booking.find({
-    car: carId,
-    status: 'confirmed',
-    startTime: { $lt: endTime },   
-    endTime: { $gt: startTime },   
-  });
+  try {
+    return await Booking.find({
+      car: carId,
+      status: { $in: ['confirmed', 'pending'] }, 
+      $or: [
+        {
+          startTime: { $lte: startTime },
+          endTime: { $gt: startTime }
+        },
+        {
+          startTime: { $lt: endTime },
+          endTime: { $gte: endTime }
+        },
+        {
+          startTime: { $gte: startTime },
+          endTime: { $lte: endTime }
+        },
+
+        {
+          startTime: { $lte: startTime },
+          endTime: { $gte: endTime }
+        }
+      ]
+    });
+  } catch (error) {
+    throw new Error(`Error checking overlapping bookings: ${error.message}`);
+  }
 };
 
 const getUserBookings = async (userId) => {
-  return await Booking.find({ user: userId }).populate('car');
+  try {
+    return await Booking.find({ user: userId })
+      .populate('car', 'make model year price owner')
+      .populate('user', 'username email')
+      .sort({ createdAt: -1 }); 
+  } catch (error) {
+    throw new Error(`Error fetching user bookings: ${error.message}`);
+  }
 };
 
 const getBookingById = async (bookingId) => {
-  return await Booking.findById(bookingId).populate('car user');
+  try {
+    return await Booking.findById(bookingId)
+      .populate('car', 'make model year price owner')
+      .populate('user', 'username email');
+  } catch (error) {
+    throw new Error(`Error fetching booking by ID: ${error.message}`);
+  }
 };
 
 const cancelBooking = async (bookingId) => {
-  return await Booking.findByIdAndUpdate(
-    bookingId,
-    { status: 'cancelled' },
-    { new: true }
-  );
+  try {
+    return await Booking.findByIdAndUpdate(
+      bookingId,
+      { status: 'cancelled' },
+      { new: true }
+    ).populate('car', 'make model year price')
+     .populate('user', 'username email');
+  } catch (error) {
+    throw new Error(`Error cancelling booking: ${error.message}`);
+  }
+};
+
+const getCarBookings = async (carId, status = null) => {
+  try {
+    const query = { car: carId };
+    if (status) {
+      query.status = status;
+    }
+    
+    return await Booking.find(query)
+      .populate('user', 'username email')
+      .sort({ startTime: 1 });
+  } catch (error) {
+    throw new Error(`Error fetching car bookings: ${error.message}`);
+  }
+};
+
+const getUpcomingBookings = async (userId) => {
+  try {
+    return await Booking.find({
+      user: userId,
+      status: 'confirmed',
+      startTime: { $gte: new Date() }
+    })
+    .populate('car', 'make model year price')
+    .sort({ startTime: 1 });
+  } catch (error) {
+    throw new Error(`Error fetching upcoming bookings: ${error.message}`);
+  }
 };
 
 module.exports = {
@@ -35,4 +110,6 @@ module.exports = {
   getUserBookings,
   getBookingById,
   cancelBooking,
+  getCarBookings,
+  getUpcomingBookings,
 };
