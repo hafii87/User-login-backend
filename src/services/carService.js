@@ -1,9 +1,12 @@
 ﻿const carWrapper = require('../wrappers/carWrapper');
 const { AppError } = require('../middleware/errorhandler');
 
-const addCar = async (carData) => {
+const addCar = async (carData, userId) => {
   try {
-    return await carWrapper.createCar(carData);
+    const carwithowner={
+      ...carData, owner: userId
+    }
+    return await carWrapper.createCar(carwithowner);
   } catch (error) {
     throw new Error(`Error adding car: ${error.message}`);
   }
