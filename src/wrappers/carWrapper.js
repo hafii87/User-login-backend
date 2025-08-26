@@ -19,7 +19,7 @@ const getCarsWithOwners = async () => {
 
 const getCarById = async (id) => {
   try {
-    return await Car.findOne({ _id: id, isDeleted: false }).populate('owner', 'username email');
+    return await Car.findOne({ id: id, isDeleted: false }).populate('owner', 'username email');
   } catch (error) {
     throw new Error(`Error fetching car by ID: ${error.message}`);
   }
@@ -36,7 +36,7 @@ const getCarsByOwner = async (ownerId) => {
 const updateCarByOwner = async (id, ownerId, update) => {
   try {
     return await Car.findOneAndUpdate(
-      { _id: id, owner: ownerId, isDeleted: false },
+      { id: id, owner: ownerId, isDeleted: false },
       update,
       { new: true, runValidators: true }
     );
@@ -48,7 +48,7 @@ const updateCarByOwner = async (id, ownerId, update) => {
 const softDeleteCar = async (id, ownerId, deletedBy) => {
   try {
     return await Car.findOneAndUpdate(
-      { _id: id, owner: ownerId, isDeleted: false },
+      { id: id, owner: ownerId, isDeleted: false },
       { isDeleted: true, deletedAt: new Date(), deletedBy },
       { new: true }
     );

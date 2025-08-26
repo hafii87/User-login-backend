@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const authenticate = require('../middleware/verifyToken');
+const verifyToken = require('../middleware/verifyToken'); 
 const { validateCar } = require('../validators/carValidators');
 
 const {
@@ -12,10 +12,11 @@ const {
   deleteCar,
 } = require('../controllers/carController');
 
-router.get('/', authenticate, getCarsWithOwners);
-router.post('/', authenticate, validateCar, addCar);
-router.get('/:id', authenticate, viewCar);
-router.put('/:id', authenticate, validateCar, updateCar); 
-router.delete('/:id', authenticate, deleteCar);
+
+router.get('/', verifyToken, getCarsWithOwners);
+router.post('/', verifyToken, validateCar, addCar);
+router.get('/:id', verifyToken, viewCar);
+router.put('/:id', verifyToken, validateCar, updateCar);
+router.delete('/:id', verifyToken, deleteCar);
 
 module.exports = router;

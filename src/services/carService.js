@@ -1,25 +1,44 @@
 ﻿const carWrapper = require('../wrappers/carWrapper');
 const { AppError } = require('../middleware/errorhandler');
 
-const addCar = async (carData, userId) => {
-  if (!userId) throw new AppError('User ID is required to add a car', 400);
-  return await carWrapper.addCar({ ...carData, owner: userId });
+const addCar = async (carData) => {
+  try {
+    return await carWrapper.createCar(carData);
+  } catch (error) {
+    throw new Error(`Error adding car: ${error.message}`);
+  }
 };
 
 const getCarsWithOwners = async () => {
-  return await carWrapper.getCarsWithOwners();
+  try {
+    return await carWrapper.getCarsWithOwners();
+  } catch (error) {
+    throw new Error(`Error fetching cars with owners: ${error.message}`);
+  }
 };
 
 const getCarById = async (carId) => {
-  return await carWrapper.getCarById(carId);
+  try {
+    return await carWrapper.getCarById(carId);
+  } catch (error) {
+    throw new Error(`Error fetching car by ID: ${error.message}`);
+  }
 };
 
-const updateCar = async (userId, carId, carData) => {
-  return await carWrapper.updateCarByOwner(carId, userId, carData);
+const updateCar = async (carId, updateData, userId) => {
+  try {
+    return await carWrapper.updateCarByOwner(carId, userId, updateData);
+  } catch (error) {
+    throw new Error(`Error updating car: ${error.message}`);
+  }
 };
 
-const deleteCar = async (userId, carId) => {
-  return await carWrapper.softDeleteCar(carId, userId);
+const deleteCar = async (carId, userId) => {
+  try {
+    return await carWrapper.deleteCarByOwner(carId, userId);
+  } catch (error) {
+    throw new Error(`Error deleting car: ${error.message}`);
+  }
 };
 
 module.exports = {

@@ -3,15 +3,13 @@ const { AppError } = require('../middleware/errorhandler');
 
 const addCar = async (req, res, next) => {
   try {
-    if (!req.user?._id) {
-      return next(new AppError('User authentication failed', 401));
-    }
+    const userId = req.user.id;
     const carData = req.body;
     if (!carData.make || !carData.model || !carData.year) {
       return next(new AppError('Please provide all required fields', 400));
     }
 
-    const car = await carService.addCar(carData, req.user._id);
+    const car = await carService.addCar(carData, userId);
     res.status(201).json({
       success: true,
       message: 'Car added successfully',
@@ -54,11 +52,9 @@ const viewCar = async (req, res, next) => {
 
 const updateCar = async (req, res, next) => {
   try {
-    if (!req.user?._id) {
-      return next(new AppError('User authentication failed', 401));
-    }
+    const userId = req.user.id;
 
-    const updatedCar = await carService.updateCar(req.user._id, req.params.id, req.body);
+    const updatedCar = await carService.updateCar(userId, req.params.id, req.body);
 
     if (!updatedCar) {
       return next(new AppError('Car not found or unauthorized', 404));
@@ -76,11 +72,9 @@ const updateCar = async (req, res, next) => {
 
 const deleteCar = async (req, res, next) => {
   try {
-    if (!req.user?._id) {
-      return next(new AppError('User authentication failed', 401));
-    }
+    const userId = req.user.id;
 
-    const deleted = await carService.deleteCar(req.user._id, req.params.id);
+    const deleted = await carService.deleteCar(userId, req.params.id);
 
     if (!deleted) {
       return next(new AppError('Car not found or unauthorized', 404));

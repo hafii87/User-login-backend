@@ -4,7 +4,7 @@ const { AppError } = require('../middleware/errorhandler');
 
 const getUserWithCars = async (req, res, next) => {
   try {
-    const userData = await userService.getUserWithCars(req.user._id);
+    const userData = await userService.getUserWithCars(req.user.id);
     if (!userData) return next(new AppError('User not found', 404));
     
     res.status(200).json({
@@ -26,14 +26,14 @@ const registerUser = async (req, res, next) => {
 
     const user = await userService.registerUser(req.body);
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       status: 'success',
       message: 'User registered successfully',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email
       }
@@ -58,7 +58,7 @@ const loginUser = async (req, res, next) => {
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email
       }
@@ -81,7 +81,7 @@ const logoutUser = async (req, res, next) => {
 
 const updateUserProfile = async (req, res, next) => {
   try {
-    const updatedUser = await userService.updateUserProfile(req.user._id, req.body);
+    const updatedUser = await userService.updateUserProfile(req.user.id, req.body);
     if (!updatedUser) return next(new AppError('User not found', 404));
 
     res.status(200).json({

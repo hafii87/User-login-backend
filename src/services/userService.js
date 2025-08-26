@@ -53,8 +53,7 @@ const loginUser = async (data) => {
   if (!isMatch) throw new AppError('Invalid credentials', 401);
 
   const payload = { 
-    id: user._id.toString(), 
-    _id: user._id.toString(), 
+    id: user.id.toString(), 
     username: user.username, 
     email: user.email 
   };

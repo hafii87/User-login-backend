@@ -5,72 +5,25 @@ const User = require('../models/UserModel');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const verifyToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next(new AppError('No token provided', 401));
+  }
+
+  const token = authHeader.split(' ')[1];
+
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; 
-
-    console.log('Auth Header:', authHeader); 
-    console.log('Token:', token); 
-    if (!token) {
-      return res.status(401).json({ 
-        status: 'error', 
-        message: 'Access token required' 
-      });
-    }
-
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log('Decoded token:', decoded);
-
-    const userId = decoded.id || decoded._id;
-    console.log('User ID from token:', userId); 
-    
-    if (!userId) {
-      return res.status(401).json({ 
-        status: 'error', 
-        message: 'Invalid token payload' 
-      });
-    }
-
-    const user = await User.findById(userId);
+    const user = await User.findById(decoded.id).select('-password');
     if (!user) {
-      return res.status(401).json({ 
-        status: 'error', 
-        message: 'User not found' 
-      });
+      return next(new AppError('User not found', 404));
     }
-
-    req.user = {
-      _id: user._id,
-      id: user._id.toString(), 
-      username: user.username,
-      email: user.email
-    };
-
-    console.log('req.user set to:', req.user); 
-
+    req.user = user;
     next();
   } catch (error) {
-    console.error('Token verification error:', error); 
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
-        status: 'error', 
-        message: 'Invalid token' 
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        status: 'error', 
-        message: 'Token expired' 
-      });
-    }
-
-    return res.status(500).json({ 
-      status: 'error', 
-      message: 'Token verification failed' 
-    });
+    return next(new AppError('Invalid or expired token', 401));
   }
-};
+}
 
-module.exports = verifyToken;
+module.exports = verifyToken ;
