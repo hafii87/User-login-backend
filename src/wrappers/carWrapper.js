@@ -62,6 +62,59 @@ const deleteCarByOwner = async (carId, ownerId) => {
   }
 };
 
+const  getCarBookings = async (carId, status = null) => {
+  try {
+    return await bookingWrapper.getCarBookings(carId, status);
+  } catch (error) {
+    throw new Error(`Error fetching car bookings: ${error.message}`);
+  }
+};
+
+const extendBooking = async (bookingId, userId, newEndTime) => {
+  try {
+    const booking = await bookingWrapper.getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+    if (booking.user.toString() !== userId.toString()) {
+      throw new Error('You can only extend your own bookings');
+    }
+    if (new Date(newEndTime) <= booking.endTime) {
+      throw new Error('New end time must be after current end time');
+    }
+
+    const conflictingBookings = await bookingWrapper.findOverlapping(
+      booking.car.id,
+      booking.endTime,
+      new Date(newEndTime)
+    );
+    if (conflictingBookings.length > 0) {
+      throw new Error('The car is already booked for the extended time range');
+    }
+
+    booking.endTime = new Date(newEndTime);
+    return await booking.save();
+  } catch (error) {
+    throw new Error(`Error extending booking: ${error.message}`);
+  }
+};  
+
+const getBookingHistory = async (userId) => {
+  try {
+    return await bookingWrapper.getBookingHistory(userId);
+  } catch (error) {
+    throw new Error(`Error fetching booking history: ${error.message}`);
+  }
+};
+
+const updatedBookings = async (userId) => {
+  try {
+    return await bookingWrapper.getUpdatedBookings(userId);
+  } catch (error) {
+    throw new Error(`Error fetching updated bookings: ${error.message}`);
+  }
+};
+
 module.exports = {
   createCar, 
   getCarsWithOwners,
@@ -69,4 +122,8 @@ module.exports = {
   getCarsByOwner,
   updateCarByOwner,
   deleteCarByOwner, 
+  getCarBookings,
+  extendBooking,
+  getBookingHistory,
+  updatedBookings
 };

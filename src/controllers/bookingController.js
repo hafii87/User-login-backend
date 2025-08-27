@@ -102,9 +102,54 @@ const cancelBooking = async (req, res, next) => {
   }
 };
 
+const extendBooking = async (req, res, next) => {
+  try {
+    const bookingId = req.params.id;
+    const { newEndTime } = req.body;
+
+    if (!newEndTime) {
+      return next(new AppError('newEndTime is required', 400));
+    }
+
+    const updatedBooking = await bookingService.extendBooking(bookingId, newEndTime);
+    if (!updatedBooking) {
+      return next(new AppError('Booking not found', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking extended successfully',
+      data: updatedBooking,
+    });
+  } catch (error) {
+    console.error('Error extending booking:', error.message);
+    next(new AppError(error.message || 'Failed to extend booking', 400));
+  }
+};
+
+const getCarBookings = async (req, res, next) => {
+  try {
+    const carId = req.params.id;
+    console.log('Fetching bookings for car:', carId);
+
+    const bookings = await bookingService.getCarBookings(carId);
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings
+    });
+  } catch (error) {
+    console.error('Error fetching car bookings:', error.message);
+    next(new AppError(error.message || 'Failed to fetch car bookings', 400));
+  }
+};
+
 module.exports = {
   bookCar,
   getUserBookings,
   getBookingById,
   cancelBooking,
+  extendBooking,
+  getCarBookings
 };
