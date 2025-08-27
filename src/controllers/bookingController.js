@@ -104,14 +104,13 @@ const cancelBooking = async (req, res, next) => {
 
 const extendBooking = async (req, res, next) => {
   try {
-    const bookingId = req.params.id;
-    const { newEndTime } = req.body;
+    const { bookingId } = req.body;
 
-    if (!newEndTime) {
-      return next(new AppError('newEndTime is required', 400));
+    if (!bookingId) {
+      return next(new AppError('bookingId is required', 400));
     }
 
-    const updatedBooking = await bookingService.extendBooking(bookingId, newEndTime);
+    const updatedBooking = await bookingService.extendBooking(bookingId, req.user.id, newEndTime);
     if (!updatedBooking) {
       return next(new AppError('Booking not found', 404));
     }
@@ -132,7 +131,7 @@ const getCarBookings = async (req, res, next) => {
     const carId = req.params.id;
     console.log('Fetching bookings for car:', carId);
 
-    const bookings = await bookingService.getCarBookings(carId);
+    const bookings = await bookingService.getCarBookings(req.params.id);
 
     res.status(200).json({
       success: true,
