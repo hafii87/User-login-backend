@@ -7,12 +7,16 @@ const {
   bookCar,
   getUserBookings,
   getBookingById,
-  cancelBooking
+  cancelBooking,
+  extendBooking,
+  getCarBookings
 } = require('../controllers/bookingController');
 
 router.post('/BookNow', verifyToken, validateBooking, bookCar);
 router.get('/MyBookings', verifyToken, getUserBookings);
 router.get('/ViewBooking/:id', verifyToken, getBookingById);
 router.patch('/CancelBooking/:id', verifyToken, cancelBooking);
+router.patch('/ExtendBooking/:id', verifyToken, extendBooking);
+router.get('/CarBookings/:id', verifyToken, getCarBookings);
 
 module.exports = router;
