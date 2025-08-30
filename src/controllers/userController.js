@@ -4,12 +4,12 @@ const { AppError } = require('../middleware/errorhandler');
 
 const getUserWithCars = async (req, res, next) => {
   try {
-    const user = await userService.findById(req.user.id).populate('cars');
+    const user = await userService.getUserWithCars(req.user.id); 
     if (!user) return next(new AppError('User not found', 404));
 
     res.status(200).json({
       status: 'success',
-      data: userData
+      data: user 
     });
   } catch (error) {
     next(error);
@@ -96,7 +96,7 @@ const updateUserProfile = async (req, res, next) => {
 
 const deleteUserAccount = async (req, res, next) => {
   try {
-    await userService.deleteUserAccount(req.user._id);
+    await userService.deleteUserAccount(req.user.id); 
     res.status(200).json({
       status: 'success',
       message: 'User account deleted successfully'

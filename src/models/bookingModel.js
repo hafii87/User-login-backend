@@ -1,4 +1,5 @@
-const mongoose = require('mongoose'); 
+const mongoose = require('mongoose');
+
 const bookingSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -26,10 +27,9 @@ const bookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'cancelled'],
-    default: 'confirmed'
-  },
-  createdAt: { type: Date, default: Date.now }
+    enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
+    default: 'upcoming'
+  }
 }, { 
   timestamps: true,
   toJSON: {
@@ -43,4 +43,5 @@ const bookingSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-module.exports = mongoose.model('Booking', bookingSchema);
+const Booking = mongoose.models.Booking || mongoose.model('Booking', bookingSchema);
+module.exports = Booking;

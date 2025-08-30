@@ -9,6 +9,16 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.virtual('cars', {
+  ref: 'Car',
+  localField: '_id',
+  foreignField: 'owner'
+});
+
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
+
+
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 module.exports = User;

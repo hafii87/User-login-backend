@@ -54,11 +54,7 @@ const updateCar = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const updatedCar = await Car.findOneAndUpdate(
-      { _id: req.params.id, owner: userId },   
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
+    const updatedCar = await carService.updateCar(req.params.id, req.body, userId);
 
     if (!updatedCar) {
       return next(new AppError('Car not found or unauthorized', 404));
@@ -77,11 +73,7 @@ const updateCar = async (req, res, next) => {
 const deleteCar = async (req, res, next) => {
   try {
     const userId = req.user.id;
-
-   const deletedCar = await Car.findOneAndDelete({
-      _id: req.params.id,
-      owner: userId
-    });
+    const deletedCar = await carService.deleteCar(req.params.id, userId);
 
     if (!deletedCar) {
       return next(new AppError('Car not found or unauthorized', 404));

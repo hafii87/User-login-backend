@@ -9,14 +9,19 @@ const bookCar = async (req, res, next) => {
     const userId = req.user.id;
     const { carId, startTime, endTime } = req.body;
 
+    console.log('Controller - userId:', userId); 
+    console.log('Controller - carId:', carId); 
+    console.log('Controller - req.body:', req.body); 
+
     if (!userId) return next(new AppError('userId is required', 400));
     if (!carId) return next(new AppError('carId is required', 400));
     if (!startTime) return next(new AppError('startTime is required', 400));
     if (!endTime) return next(new AppError('endTime is required', 400));
 
+
     const booking = await bookingService.bookCar({
       user: userId,
-      car: carId,
+      car: carId,  
       startTime,
       endTime,
       status: "upcoming",
@@ -38,6 +43,7 @@ const bookCar = async (req, res, next) => {
       data: booking
     });
   } catch (error) {
+    console.error('Controller Error:', error); // Debug log
     next(new AppError(error.message || 'Failed to create booking', 400));
   }
 };
