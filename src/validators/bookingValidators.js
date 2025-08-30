@@ -3,7 +3,7 @@ const { AppError } = require('../middleware/errorhandler');
 
 const bookingSchema = Joi.object({
   carId: Joi.string()
-    .regex(/^[0-9a-fA-F]{24}$/)
+    .pattern(/^[0-9a-fA-F]{24}$/)
     .required()
     .messages({
       'any.required': 'Car ID is required',
@@ -40,22 +40,24 @@ const validateBooking = (req, res, next) => {
     return next(new AppError(message, 400));
   }
 
-
   const { startTime, endTime } = req.body;
-  
-  if (new Date(startTime) <= new Date()) {
+  const now = new Date();
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  if (start <= now) {
     return next(new AppError('Start time must be in the future', 400));
   }
 
-  const duration = new Date(endTime) - new Date(startTime);
-  const oneHour = 60 * 60 * 1000;
-  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  const durationMs = end - start;
+  const oneHourMs = 60 * 60 * 1000;
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
-  if (duration < oneHour) {
+  if (durationMs < oneHourMs) {
     return next(new AppError('Booking duration must be at least 1 hour', 400));
   }
 
-  if (duration > sevenDays) {
+  if (durationMs > sevenDaysMs) {
     return next(new AppError('Booking duration cannot exceed 7 days', 400));
   }
 
