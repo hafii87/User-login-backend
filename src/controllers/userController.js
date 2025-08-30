@@ -4,9 +4,9 @@ const { AppError } = require('../middleware/errorhandler');
 
 const getUserWithCars = async (req, res, next) => {
   try {
-    const userData = await userService.getUserWithCars(req.user.id);
-    if (!userData) return next(new AppError('User not found', 404));
-    
+    const user = await userService.findById(req.user.id).populate('cars');
+    if (!user) return next(new AppError('User not found', 404));
+
     res.status(200).json({
       status: 'success',
       data: userData
