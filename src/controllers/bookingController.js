@@ -2,30 +2,36 @@ const bookingService = require('../services/bookingService');
 const User = require('../models/UserModel');
 const Car = require('../models/CarModel');
 const { AppError } = require('../middleware/errorhandler');
+const agenda = require('../jobs/agenda');
 
 const bookCar = async (req, res, next) => {
   try {
     const userId = req.user.id;
-
     const { carId, startTime, endTime } = req.body;
 
-    if (!userId) {
-      return next(new AppError('userId is required', 400));
-    }
+    if (!userId) return next(new AppError('userId is required', 400));
+    if (!carId) return next(new AppError('carId is required', 400));
+    if (!startTime) return next(new AppError('startTime is required', 400));
+    if (!endTime) return next(new AppError('endTime is required', 400));
 
-    if (!carId) {
-      return next(new AppError('carId is required', 400));
-    }
+    const booking = await bookingService.bookCar({
+      user: userId,
+      car: carId,
+      startTime,
+      endTime,
+      status: "upcoming",
+    });
 
-    if (!startTime) {
-      return next(new AppError('startTime is required', 400));
-    }
+    await agenda.schedule(new Date(startTime), "start booking", {
+      bookingId: booking._id,
+      carId: carId,
+    });
 
-    if (!endTime) {
-      return next(new AppError('endTime is required', 400));
-    }
+    await agenda.schedule(new Date(endTime), "end booking", {
+      bookingId: booking._id,
+      carId: carId,
+    });
 
-    const booking = await bookingService.bookCar(userId, carId, startTime, endTime);
     res.status(201).json({
       success: true,
       message: 'Booking created successfully',
@@ -39,17 +45,14 @@ const bookCar = async (req, res, next) => {
 const getUserBookings = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    console.log('Fetching bookings for user:', userId);
-    
     const bookings = await bookingService.getUserBookings(userId);
-    
-    res.status(200).json({ 
-      success: true, 
+
+    res.status(200).json({
+      success: true,
       count: bookings.length,
-      data: bookings 
+      data: bookings
     });
   } catch (error) {
-    console.error('Error fetching user bookings:', error.message);
     next(new AppError(error.message || 'Failed to fetch bookings', 400));
   }
 };
@@ -57,19 +60,12 @@ const getUserBookings = async (req, res, next) => {
 const getBookingById = async (req, res, next) => {
   try {
     const bookingId = req.params.id;
-    console.log('Fetching booking by ID:', bookingId);
-    
     const booking = await bookingService.getBookingById(bookingId);
-    if (!booking) {
-      return next(new AppError('Booking not found', 404));
-    }
-    
-    res.status(200).json({ 
-      success: true, 
-      data: booking 
-    });
+
+    if (!booking) return next(new AppError('Booking not found', 404));
+
+    res.status(200).json({ success: true, data: booking });
   } catch (error) {
-    console.error('Error fetching booking:', error.message);
     next(new AppError(error.message || 'Failed to fetch booking', 400));
   }
 };
@@ -79,41 +75,47 @@ const cancelBooking = async (req, res, next) => {
     const bookingId = req.params.id;
     const userId = req.user.id;
 
-    console.log('Cancelling booking:', bookingId, 'for user:', userId);
-    
     const cancelledBooking = await bookingService.cancelBooking(bookingId, userId);
-    
+
+    await agenda.cancel({ "data.bookingId": bookingId });
+
     res.status(200).json({
       success: true,
       message: 'Booking cancelled successfully',
       data: cancelledBooking,
     });
   } catch (error) {
-    console.error('Error cancelling booking:', error.message);
-    
     if (error.message === 'You can only cancel your own bookings') {
       return next(new AppError(error.message, 403));
     }
     if (error.message === 'Booking not found') {
       return next(new AppError(error.message, 404));
     }
-    
     next(new AppError(error.message || 'Failed to cancel booking', 400));
   }
 };
 
 const extendBooking = async (req, res, next) => {
   try {
-    const { bookingId } = req.body;
+    const { bookingId, newEndTime } = req.body;
 
-    if (!bookingId) {
-      return next(new AppError('bookingId is required', 400));
-    }
+    if (!bookingId) return next(new AppError('bookingId is required', 400));
+    if (!newEndTime) return next(new AppError('newEndTime is required', 400));
 
-    const updatedBooking = await bookingService.extendBooking(bookingId, req.user.id, newEndTime);
-    if (!updatedBooking) {
-      return next(new AppError('Booking not found', 404));
-    }
+    const updatedBooking = await bookingService.extendBooking(
+      bookingId,
+      req.user.id,
+      newEndTime
+    );
+
+    if (!updatedBooking) return next(new AppError('Booking not found', 404));
+
+    await agenda.cancel({ "data.bookingId": bookingId, name: "end booking" });
+
+    await agenda.schedule(new Date(newEndTime), "end booking", {
+      bookingId: bookingId,
+      carId: updatedBooking.car, 
+    });
 
     res.status(200).json({
       success: true,
@@ -121,7 +123,6 @@ const extendBooking = async (req, res, next) => {
       data: updatedBooking,
     });
   } catch (error) {
-    console.error('Error extending booking:', error.message);
     next(new AppError(error.message || 'Failed to extend booking', 400));
   }
 };
@@ -129,9 +130,7 @@ const extendBooking = async (req, res, next) => {
 const getCarBookings = async (req, res, next) => {
   try {
     const carId = req.params.id;
-    console.log('Fetching bookings for car:', carId);
-
-    const bookings = await bookingService.getCarBookings(req.params.id);
+    const bookings = await bookingService.getCarBookings(carId);
 
     res.status(200).json({
       success: true,
@@ -139,7 +138,6 @@ const getCarBookings = async (req, res, next) => {
       data: bookings
     });
   } catch (error) {
-    console.error('Error fetching car bookings:', error.message);
     next(new AppError(error.message || 'Failed to fetch car bookings', 400));
   }
 };

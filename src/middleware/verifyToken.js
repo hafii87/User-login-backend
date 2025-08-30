@@ -19,7 +19,7 @@
       if (!user) {
         return next(new AppError('User not found', 404));
       }
-      req.user = user;
+      req.user = decoded;
       next();
     } catch (error) {
       return next(new AppError('Invalid or expired token', 401));
