@@ -3,7 +3,7 @@ const carWrapper = require('../wrappers/carWrapper');
 
 const bookCar = async (bookingData) => {
   try {
-    const { user: userId, car: carId, startTime, endTime } = bookingData;
+    const { user: userId, car: carId, startTime, endTime,  } = bookingData;
 
     const car = await carWrapper.getCarById(carId);
     if (!car) throw new Error('Car not found');
@@ -22,7 +22,8 @@ const bookCar = async (bookingData) => {
       car: carId,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
-      status: 'upcoming', 
+      isStarted: false,
+      status: 'upcoming',
     });
 
     return booking;

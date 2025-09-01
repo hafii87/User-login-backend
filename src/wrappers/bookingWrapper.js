@@ -16,8 +16,9 @@ const findOverlapping = async (carId, startTime, endTime) => {
     return await Booking.find({
       car: carId,
       status: { $in: ['upcoming', 'ongoing'] },
-      startTime: { $lt: endTime },  
-      endTime: { $gt: startTime }   
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+      isStarted: false
     });
   } catch (error) {
     throw new Error(`Error checking overlapping bookings: ${error.message}`);

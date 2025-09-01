@@ -9,31 +9,29 @@ const bookCar = async (req, res, next) => {
     const userId = req.user.id;
     const { carId, startTime, endTime } = req.body;
 
-    console.log('Controller - userId:', userId); 
-    console.log('Controller - carId:', carId); 
-    console.log('Controller - req.body:', req.body); 
-
     if (!userId) return next(new AppError('userId is required', 400));
     if (!carId) return next(new AppError('carId is required', 400));
     if (!startTime) return next(new AppError('startTime is required', 400));
     if (!endTime) return next(new AppError('endTime is required', 400));
-
 
     const booking = await bookingService.bookCar({
       user: userId,
       car: carId,  
       startTime,
       endTime,
+      isStarted: false,
       status: "upcoming",
     });
 
+    await Car.findByIdAndUpdate(carId, { isAvailable: false });
+
     await agenda.schedule(new Date(startTime), "start booking", {
-      bookingId: booking._id,
+      bookingId: booking.id,
       carId: carId,
     });
 
     await agenda.schedule(new Date(endTime), "end booking", {
-      bookingId: booking._id,
+      bookingId: booking.id,
       carId: carId,
     });
 
@@ -43,7 +41,7 @@ const bookCar = async (req, res, next) => {
       data: booking
     });
   } catch (error) {
-    console.error('Controller Error:', error); // Debug log
+    console.error('Controller Error:', error); 
     next(new AppError(error.message || 'Failed to create booking', 400));
   }
 };
@@ -84,6 +82,8 @@ const cancelBooking = async (req, res, next) => {
     const cancelledBooking = await bookingService.cancelBooking(bookingId, userId);
 
     await agenda.cancel({ "data.bookingId": bookingId });
+
+    await Car.findByIdAndUpdate(cancelledBooking.car, { isAvailable: true });
 
     res.status(200).json({
       success: true,

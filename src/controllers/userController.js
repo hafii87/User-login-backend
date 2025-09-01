@@ -96,7 +96,7 @@ const updateUserProfile = async (req, res, next) => {
 
 const deleteUserAccount = async (req, res, next) => {
   try {
-    await userService.deleteUserAccount(req.user.id); 
+    await userService.deleteUserAccount(req.body); 
     res.status(200).json({
       status: 'success',
       message: 'User account deleted successfully'

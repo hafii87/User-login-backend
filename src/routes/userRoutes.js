@@ -17,6 +17,6 @@ router.post('/login', loginUser);
 router.get('/profile', verifyToken, getUserWithCars);
 router.post('/logout', verifyToken, logoutUser);
 router.put('/update/:id', verifyToken, updateUserProfile);
-router.delete('/delete/:id', verifyToken, deleteUserAccount);
+router.delete('/delete/', verifyToken, deleteUserAccount);
 
 module.exports = router;

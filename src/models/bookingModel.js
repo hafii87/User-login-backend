@@ -25,6 +25,10 @@ const bookingSchema = new mongoose.Schema({
       message: 'End time must be after start time'
     }
   },
+  isStarted: {
+    type: Boolean,
+    default: false
+  },  
   status: {
     type: String,
     enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
