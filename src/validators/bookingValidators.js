@@ -50,11 +50,11 @@ const validateBooking = (req, res, next) => {
   }
 
   const durationMs = end - start;
-  const oneHourMs = 60 * 60 * 1000;
+  const halfHourMs = 30 * 60 * 1000;
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
-  if (durationMs < oneHourMs) {
-    return next(new AppError('Booking duration must be at least 1 hour', 400));
+  if (durationMs < halfHourMs) {
+    return next(new AppError('Booking duration must be at least 30 minutes', 400));
   }
 
   if (durationMs > sevenDaysMs) {

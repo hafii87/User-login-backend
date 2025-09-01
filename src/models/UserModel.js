@@ -15,9 +15,17 @@ userSchema.virtual('cars', {
   foreignField: 'owner'
 });
 
-userSchema.set('toJSON', { virtuals: true });
-userSchema.set('toObject', { virtuals: true });
+userSchema.set('toJSON', { 
+  virtuals: true,
+  transform: (doc, ret) => {
+    ret.id = ret._id;  
+    delete ret._id;    
+    delete ret.__v;    
+    return ret;
+  }
+});
 
+userSchema.set('toObject', { virtuals: true });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
