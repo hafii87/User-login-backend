@@ -79,27 +79,41 @@ const cancelBooking = async (req, res, next) => {
     const bookingId = req.params.id;
     const userId = req.user.id;
 
-    const cancelledBooking = await bookingService.cancelBooking(bookingId, userId);
+    const booking = await bookingService.getBookingById(bookingId);
 
+    if (!booking) {
+      return next(new AppError('Booking not found', 404));
+    }
+
+    if (booking.status === 'completed') {
+      return next(new AppError('Booking already completed. Cannot cancel.', 400));
+    }
+    if (booking.status === 'ongoing') {
+      return next(new AppError('Booking already started. Cannot cancel.', 400));
+    }
+
+    if (booking.user.toString() !== userId && req.user.role !== 'admin') {
+      return next(new AppError('You can only cancel your own bookings', 403));
+    }
+
+    booking.status = 'cancelled';
+    await booking.save();
     await agenda.cancel({ "data.bookingId": bookingId });
 
-    await Car.findByIdAndUpdate(cancelledBooking.car, { isAvailable: true });
+    if (booking.car) {
+      await Car.findByIdAndUpdate(booking.car, { isAvailable: true });
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Booking cancelled successfully',
-      data: cancelledBooking,
+      data: booking,
     });
   } catch (error) {
-    if (error.message === 'You can only cancel your own bookings') {
-      return next(new AppError(error.message, 403));
-    }
-    if (error.message === 'Booking not found') {
-      return next(new AppError(error.message, 404));
-    }
-    next(new AppError(error.message || 'Failed to cancel booking', 400));
+    return next(new AppError(error.message || 'Failed to cancel booking', 400));
   }
 };
+
 
 const extendBooking = async (req, res, next) => {
   try {
@@ -147,6 +161,8 @@ const getCarBookings = async (req, res, next) => {
     next(new AppError(error.message || 'Failed to fetch car bookings', 400));
   }
 };
+
+
 
 module.exports = {
   bookCar,
