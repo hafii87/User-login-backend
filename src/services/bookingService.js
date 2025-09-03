@@ -1,9 +1,10 @@
+const agenda = require('../jobs/agenda');
 const bookingWrapper = require('../wrappers/bookingWrapper');
 const carWrapper = require('../wrappers/carWrapper');
 
 const bookCar = async (bookingData) => {
   try {
-    const { user: userId, car: carId, startTime, endTime,  } = bookingData;
+    const { user: userId, car: carId, startTime, endTime, bookingTimezone } = bookingData;
 
     const car = await carWrapper.getCarById(carId);
     if (!car) throw new Error('Car not found');
@@ -24,6 +25,7 @@ const bookCar = async (bookingData) => {
       endTime: new Date(endTime),
       isStarted: false,
       status: 'upcoming',
+      bookingTimezone
     });
 
     return booking;
@@ -62,23 +64,30 @@ const cancelBooking = async (bookingId, userId) => {
   }
 };
 
-const extendBooking = async (bookingId, userId, newEndTime) => {
+const extendBooking = async (bookingId, userId, newEndTimeUTC) => {
   try {
     const booking = await bookingWrapper.getBookingById(bookingId);
     if (!booking) throw new Error('Booking not found');
-    if (booking.user.toString() !== userId.toString()) throw new Error('Unauthorized');
-    if (new Date(newEndTime) <= new Date(booking.endTime)) {
-      throw new Error('New end time must be later');
+
+    const bookingUserId = booking.user._id ? booking.user._id.toString() : booking.user.toString();
+    const currentUserId = userId.toString();
+    
+    if (bookingUserId !== currentUserId) {
+      throw new Error('Unauthorized');
     }
 
-    const overlaps = await bookingWrapper.findOverlapping(
-      booking.car,                
-      new Date(booking.endTime),  
-      new Date(newEndTime)        
-    );
-    if (overlaps.length > 0) throw new Error('Car already booked in extended time');
+    if (new Date(newEndTimeUTC) <= new Date(booking.endTime)) {
+      throw new Error('New end time must be later than current end time');
+    }
 
-    booking.endTime = new Date(newEndTime);
+    const overlapping = await bookingWrapper.findOverlapping(
+      carId,
+      booking.endTime,
+      newEndTimeUTC
+    );
+    if (overlapping.length > 0) throw new Error('Car already booked in extended time');
+
+    booking.endTime = newEndTimeUTC;
     return await booking.save();
   } catch (err) {
     throw new Error(`Error extending booking: ${err.message}`);

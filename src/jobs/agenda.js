@@ -6,18 +6,25 @@ const agenda = new Agenda({
   db: {
     address: process.env.MONGODB_URI || 'mongodb://localhost:27017/User-login',
     collection: 'jobs',
-    options: { useUnifiedTopology: true }, 
+    options: { useUnifiedTopology: true },
   },
 });
 
 agenda.define('start booking', async (job) => {
   try {
-    const { bookingId, carId } = job.attrs.data;
+    const { bookingId } = job.attrs.data;
 
-    await Booking.findByIdAndUpdate(bookingId, { status: 'ongoing' });
-    await Car.findByIdAndUpdate(carId, { isAvailable: false });
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      { status: 'ongoing', isStarted: true },
+      { new: true }
+    );
 
-    console.log(` Booking ${bookingId} started | Car ${carId} set unavailable`);
+    if (booking?.car) {
+      await Car.findByIdAndUpdate(booking.car, { isAvailable: false });
+    }
+
+    console.log(` Booking ${bookingId} started | Car set unavailable`);
   } catch (err) {
     console.error(` Error in start booking job: ${err.message}`);
   }
@@ -25,12 +32,19 @@ agenda.define('start booking', async (job) => {
 
 agenda.define('end booking', async (job) => {
   try {
-    const { bookingId, carId } = job.attrs.data;
+    const { bookingId } = job.attrs.data;
 
-    await Booking.findByIdAndUpdate(bookingId, { status: 'completed' });
-    await Car.findByIdAndUpdate(carId, { isAvailable: true });
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      { status: 'completed' },
+      { new: true }
+    );
 
-    console.log(` Booking ${bookingId} completed | Car ${carId} set available`);
+    if (booking?.car) {
+      await Car.findByIdAndUpdate(booking.car, { isAvailable: true });
+    }
+
+    console.log(` Booking ${bookingId} completed | Car set available`);
   } catch (err) {
     console.error(` Error in end booking job: ${err.message}`);
   }

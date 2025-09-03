@@ -33,6 +33,10 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
     default: 'upcoming'
+  },
+  bookingTimezone: {
+    type: String,
+    default: 'Asia/Karachi'
   }
 }, { 
   timestamps: true,
