@@ -22,15 +22,25 @@ const convertFromUTC = (utcDate, userTimezone) => {
 
 const isValidTimezone = (timezone) => {
     try{
-        moment.tz.zone(timezone);
+        const zone = moment.tz.zone(timezone);
+        return zone !== null;
     } catch  {
         console.error('Error validating timezone:');
         return false;
     }
 };
 
+const formatDateForDisplay = (date, timezone) => {
+    try {
+        return moment.tz(date, timezone).format('YYYY-MM-DD HH:mm:ss');
+    } catch (error) {
+        console.error('Error formatting date for display:', error);
+        throw new Error('Failed to format date for display');
+    }
+};
+
 const getCommonTimezone = () => {
-    return[
+    return [
         'UTC',
         'America/New_York',
         'Europe/London',
@@ -43,5 +53,6 @@ module.exports = {
   convertToUTC,
   convertFromUTC,
   isValidTimezone,
+  formatDateForDisplay,
   getCommonTimezone
 };

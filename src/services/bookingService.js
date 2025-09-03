@@ -9,6 +9,10 @@ const bookCar = async (bookingData) => {
     const car = await carWrapper.getCarById(carId);
     if (!car) throw new Error('Car not found');
 
+    if (!car.isAvailable) {
+      throw new Error('Car is not available');
+    }
+
     const overlaps = await bookingWrapper.findOverlapping(
       carId,
       new Date(startTime),
@@ -54,7 +58,9 @@ const cancelBooking = async (bookingId, userId) => {
   try {
     const booking = await bookingWrapper.getBookingById(bookingId);
     if (!booking) throw new Error('Booking not found');
-    if (booking.user.toString() !== userId.toString()) {
+
+    const bookingUserId = booking.user.id ? booking.user.id.toString() : booking.user.toString();
+    if (bookingUserId !== userId.toString()) {
       throw new Error('You can only cancel your own bookings');
     }
 
@@ -80,15 +86,22 @@ const extendBooking = async (bookingId, userId, newEndTimeUTC) => {
       throw new Error('New end time must be later than current end time');
     }
 
+    const carId = booking.car.id ? booking.car.id : booking.car;
     const overlapping = await bookingWrapper.findOverlapping(
       carId,
       booking.endTime,
       newEndTimeUTC
     );
-    if (overlapping.length > 0) throw new Error('Car already booked in extended time');
 
-    booking.endTime = newEndTimeUTC;
-    return await booking.save();
+    const otherbookings = overlapping.filter(b => {
+      return b.id !== booking.id;
+    });
+    if (otherbookings.length > 0) throw new Error('Car already booked in extended time');
+
+    const updatedBooking = await bookingWrapper.updateBooking(bookingId, {
+      endTime: newEndTimeUTC
+    });
+    return updatedBooking;
   } catch (err) {
     throw new Error(`Error extending booking: ${err.message}`);
   }
@@ -102,6 +115,32 @@ const getCarBookings = async (carId, status = null) => {
   }
 };
 
+const checkCarAvailability = async (carId, startTime, endTime, excludeBooking = null) => {
+  try {
+    const car = await carWrapper.getCarById(carId);
+    if (!car) throw new Error('Car not found');
+
+    const overlaps = await bookingWrapper.findOverlapping(
+      carId,
+      startTime ,
+      endTime
+    );
+
+    const relevantOverlaps = excludeBookingId
+      ? overlaps.filter(b => {
+          return b.id !== excludeBooking.id;
+        })
+      : overlaps;
+
+    return {
+      isAvailable: relevantOverlaps.length === 0,
+      conflictingBookings: relevantOverlaps
+    };
+  } catch (err) {
+    throw new Error(`Error checking car availability: ${err.message}`);
+  }
+};
+
 module.exports = {
   bookCar,
   getUserBookings,
@@ -109,4 +148,5 @@ module.exports = {
   cancelBooking,
   extendBooking,
   getCarBookings,
+  checkCarAvailability
 };
