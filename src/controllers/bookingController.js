@@ -3,7 +3,7 @@ const User = require('../models/UserModel');
 const Car = require('../models/CarModel');
 const { AppError } = require('../middleware/errorhandler');
 const agenda = require('../jobs/agenda');
-const { convertToUTC, convertFromUTC ,isValidTimezone  } = require('../utils/timezoneUtils');
+const { convertToUTC, convertFromUTC, isValidTimezone, formatDateForDisplay } = require('../utils/timezoneUtils');
 
 const bookCar = async (req, res, next) => {
   try {
@@ -17,7 +17,7 @@ const bookCar = async (req, res, next) => {
 
     let userTimezone = req.body.timezone || req.user.timezone || 'Asia/Karachi';
 
-    if(!isValidTimezone(userTimezone)) {
+    if (!isValidTimezone(userTimezone)) {
         return next(new AppError('Invalid timezone', 400));
     }
 
@@ -25,11 +25,11 @@ const bookCar = async (req, res, next) => {
     const endTimeUTC = convertToUTC(endTime, userTimezone);
 
     if (new Date(startTime) >= new Date(endTime)) {
-        return next(new AppError('Invalid booking time', 400));
+        return next(new AppError('End time must be after start time', 400));
     }
 
     if (new Date(startTime) < new Date()) {
-        return next(new AppError('Invalid booking time', 400));
+        return next(new AppError('Start time must be in the future', 400));
     }
 
     const booking = await bookingService.bookCar({
@@ -56,8 +56,10 @@ const bookCar = async (req, res, next) => {
 
     const responseBooking = {
       ...booking.toObject(),
-      startTimelocal: convertfromUTC(booking.startTime, timezone),
-      endTimelocal: convertfromUTC(booking.endTime, timezone),
+      startTimeLocal: convertFromUTC(booking.startTime, userTimezone),
+      endTimeLocal: convertFromUTC(booking.endTime, userTimezone),
+      startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
     };
 
     res.status(201).json({
@@ -74,12 +76,27 @@ const bookCar = async (req, res, next) => {
 const getUserBookings = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const userTimezone = req.query.timezone || req.user.timezone || 'Asia/Karachi';
+    
+    if (!isValidTimezone(userTimezone)) {
+        return next(new AppError('Invalid timezone', 400));
+    }
+
     const bookings = await bookingService.getUserBookings(userId);
+
+    const bookingsWithLocalTime = bookings.map(booking => ({
+      ...booking.toObject(),
+      startTimeLocal: convertFromUTC(booking.startTime, userTimezone),
+      endTimeLocal: convertFromUTC(booking.endTime, userTimezone),
+      startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
+    }));
 
     res.status(200).json({
       success: true,
-      count: bookings.length,
-      data: bookings
+      count: bookingsWithLocalTime.length,
+      data: bookingsWithLocalTime,
+      timezone: userTimezone
     });
   } catch (error) {
     next(new AppError(error.message || 'Failed to fetch bookings', 400));
@@ -89,11 +106,29 @@ const getUserBookings = async (req, res, next) => {
 const getBookingById = async (req, res, next) => {
   try {
     const bookingId = req.params.id;
+    const userTimezone = req.query.timezone || req.user.timezone || 'Asia/Karachi';
+    
+    if (!isValidTimezone(userTimezone)) {
+        return next(new AppError('Invalid timezone', 400));
+    }
+
     const booking = await bookingService.getBookingById(bookingId);
 
     if (!booking) return next(new AppError('Booking not found', 404));
 
-    res.status(200).json({ success: true, data: booking });
+    const bookingWithLocalTime = {
+      ...booking.toObject(),
+      startTimeLocal: convertFromUTC(booking.startTime, userTimezone),
+      endTimeLocal: convertFromUTC(booking.endTime, userTimezone),
+      startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
+    };
+
+    res.status(200).json({ 
+      success: true, 
+      data: bookingWithLocalTime,
+      timezone: userTimezone 
+    });
   } catch (error) {
     next(new AppError(error.message || 'Failed to fetch booking', 400));
   }
@@ -177,34 +212,47 @@ const extendBooking = async (req, res, next) => {
     if (!newEndTime) return next(new AppError('newEndTime is required', 400));
 
     const booking = await bookingService.getBookingById(bookingId);
-    const newEndTimeUTC = convertToUTC(newEndTime, booking.bookingTimezone);
+    if (!booking) return next(new AppError('Booking not found', 404));
+
+    const userTimezone = booking.bookingTimezone || 'Asia/Karachi';
+    
+    if (!isValidTimezone(userTimezone)) {
+        return next(new AppError('Invalid booking timezone', 400));
+    }
+
+    const newEndTimeUTC = convertToUTC(newEndTime, userTimezone);
+
+    if (newEndTimeUTC <= booking.endTime) {
+      return next(new AppError('New end time must be later than current end time', 400));
+    }
+
+    const bookingUserId = booking.user._id ? booking.user._id.toString() : booking.user.toString();
+    if (bookingUserId !== req.user.id) {
+      return next(new AppError('Unauthorized to extend this booking', 403));
+    }
+
+    const carId = booking.car._id ? booking.car._id : booking.car;
+
     const updatedBooking = await bookingService.extendBooking(
       bookingId,
       req.user.id,
       newEndTimeUTC
     );
 
-    if (!updatedBooking) return next(new AppError('Booking not found', 404));
-
-    if(newEndTimeUTC <= booking.endTime) {
-      return next(new AppError('New end time must be later than current end time', 400));
-    }
-    if(newEndTimeUTC > booking.endTime) {
-      return next(new AppError('New end time must be later than current end time', 400));
-    }
-
     await agenda.cancel({ "data.bookingId": bookingId, name: "end booking" });
 
     await agenda.schedule(new Date(newEndTimeUTC), "end booking", {
       bookingId: bookingId,
-      carId: updatedBooking.car._id || updatedBooking.car, 
+      carId: carId, 
     });
 
     const responseBooking = {
-  ...booking.toObject(),
-  startTimeLocal: convertFromUTC(booking.startTime, timezone),
-  endTimeLocal: convertFromUTC(booking.endTime, timezone),
-};
+      ...updatedBooking.toObject(),
+      startTimeLocal: convertFromUTC(updatedBooking.startTime, userTimezone),
+      endTimeLocal: convertFromUTC(updatedBooking.endTime, userTimezone),
+      startTimeFormatted: formatDateForDisplay(updatedBooking.startTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone)
+    };
 
     res.status(200).json({
       success: true,
@@ -220,19 +268,32 @@ const extendBooking = async (req, res, next) => {
 const getCarBookings = async (req, res, next) => {
   try {
     const carId = req.params.id;
+    const userTimezone = req.query.timezone || req.user.timezone || 'Asia/Karachi';
+    
+    if (!isValidTimezone(userTimezone)) {
+        return next(new AppError('Invalid timezone', 400));
+    }
+
     const bookings = await bookingService.getCarBookings(carId);
+
+    const bookingsWithLocalTime = bookings.map(booking => ({
+      ...booking.toObject(),
+      startTimeLocal: convertFromUTC(booking.startTime, userTimezone),
+      endTimeLocal: convertFromUTC(booking.endTime, userTimezone),
+      startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
+    }));
 
     res.status(200).json({
       success: true,
-      count: bookings.length,
-      data: bookings
+      count: bookingsWithLocalTime.length,
+      data: bookingsWithLocalTime,
+      timezone: userTimezone
     });
   } catch (error) {
     next(new AppError(error.message || 'Failed to fetch car bookings', 400));
   }
 };
-
-
 
 module.exports = {
   bookCar,

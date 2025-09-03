@@ -29,6 +29,14 @@ const bookingSchema = Joi.object({
       'date.base': 'End time must be a valid date',
       'date.format': 'End time must be in ISO format',
       'date.greater': 'End time must be after start time'
+    }),
+
+  timezone: Joi.string()
+    .required()
+    .messages({
+      'any.required': 'Timezone is required',
+      'string.empty': 'Timezone cannot be empty',
+      'string.valid': 'Timezone must be either UTC or local'
     })
 });
 
