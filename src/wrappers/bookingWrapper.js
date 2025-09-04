@@ -75,15 +75,30 @@ const getCarBookings = async (carId, status = null) => {
 
 const updateBooking = async (bookingId, updateData) => {
   try {
+    const options = {
+      new: true,
+      runValidators: false
+    };
+    
     const booking = await Booking.findByIdAndUpdate(
       bookingId, 
       updateData, 
-      { new: true, runValidators: true }
+      options
     )
       .populate('car', 'make model year price owner')
       .populate('user', 'username email');
     
     if (!booking) throw new Error('Booking not found');
+    
+    if (updateData.endTime && booking.startTime) {
+      const newEndTime = new Date(updateData.endTime);
+      const startTime = new Date(booking.startTime);
+      
+      if (newEndTime <= startTime) {
+        throw new Error('End time must be after start time');
+      }
+    }
+    
     return booking;
   } catch (error) {
     throw new Error(`Error updating booking: ${error.message}`);
