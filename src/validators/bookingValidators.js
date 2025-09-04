@@ -40,6 +40,17 @@ const bookingSchema = Joi.object({
     })
 });
 
+const extendingBookingSchema = Joi.object({
+  newEndTime: Joi.date()
+    .iso()
+    .required()
+    .messages({
+      'any.required': 'New end time is required',
+      'date.base': 'New end time must be a valid date',
+      'date.format': 'New end time must be in ISO format'
+    })
+});
+
 const validateBooking = (req, res, next) => {
   const { error } = bookingSchema.validate(req.body, { abortEarly: false });
 
@@ -72,4 +83,20 @@ const validateBooking = (req, res, next) => {
   next();
 };
 
-module.exports = { validateBooking, bookingSchema };
+const validateExtendingBooking = (req, res, next) => {
+  const { error } = extendingBookingSchema.validate(req.body, { abortEarly: false });
+
+  if (error) {
+    const message = error.details.map(d => d.message).join(', ');
+    return next(new AppError(message, 400));
+  }
+
+  next();
+};
+
+module.exports = {
+  validateBooking,
+  bookingSchema,
+  validateExtendingBooking,
+  extendingBookingSchema
+};

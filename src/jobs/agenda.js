@@ -24,7 +24,6 @@ agenda.define('start booking', async (job) => {
       await Car.findByIdAndUpdate(booking.car, { isAvailable: false });
     }
 
-    console.log(` Booking ${bookingId} started | Car set unavailable`);
   } catch (err) {
     console.error(` Error in start booking job: ${err.message}`);
   }
@@ -44,7 +43,6 @@ agenda.define('end booking', async (job) => {
       await Car.findByIdAndUpdate(booking.car, { isAvailable: true });
     }
 
-    console.log(` Booking ${bookingId} completed | Car set available`);
   } catch (err) {
     console.error(` Error in end booking job: ${err.message}`);
   }

@@ -77,35 +77,46 @@ const extendBooking = async (bookingId, userId, newEndTimeUTC) => {
 
     const bookingUserId = booking.user._id ? booking.user._id.toString() : booking.user.toString();
     const currentUserId = userId.toString();
-    
+
     if (bookingUserId !== currentUserId) {
       throw new Error('Unauthorized');
     }
 
-    if (new Date(newEndTimeUTC) <= new Date(booking.endTime)) {
+    const newEnd = new Date(newEndTimeUTC);
+    const start = new Date(booking.startTime);
+    const currentEnd = new Date(booking.endTime);
+
+    if (newEnd <= start) {
+      throw new Error('New end time must be after booking start time');
+    }
+
+    if (newEnd <= currentEnd) {
       throw new Error('New end time must be later than current end time');
     }
 
-    const carId = booking.car.id ? booking.car.id : booking.car;
+    const carId = booking.car._id ? booking.car._id : booking.car;
     const overlapping = await bookingWrapper.findOverlapping(
       carId,
       booking.endTime,
       newEndTimeUTC
     );
 
-    const otherbookings = overlapping.filter(b => {
-      return b.id !== booking.id;
-    });
-    if (otherbookings.length > 0) throw new Error('Car already booked in extended time');
+    const otherBookings = overlapping.filter(b => b.id.toString() !== booking.id.toString());
+
+    if (otherBookings.length > 0) {
+      throw new Error('Car already booked in extended time');
+    }
 
     const updatedBooking = await bookingWrapper.updateBooking(bookingId, {
       endTime: newEndTimeUTC
     });
+
     return updatedBooking;
   } catch (err) {
     throw new Error(`Error extending booking: ${err.message}`);
   }
 };
+
 
 const getCarBookings = async (carId, status = null) => {
   try {

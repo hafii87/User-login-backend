@@ -208,21 +208,21 @@ const extendBooking = async (req, res, next) => {
     const bookingId = req.params.id;
     const { newEndTime } = req.body;
 
-    if (!bookingId) return next(new AppError('bookingId is required', 400));
-    if (!newEndTime) return next(new AppError('newEndTime is required', 400));
-
     const booking = await bookingService.getBookingById(bookingId);
     if (!booking) return next(new AppError('Booking not found', 404));
 
     const userTimezone = booking.bookingTimezone || 'Asia/Karachi';
-    
-    if (!isValidTimezone(userTimezone)) {
-        return next(new AppError('Invalid booking timezone', 400));
-    }
-
     const newEndTimeUTC = convertToUTC(newEndTime, userTimezone);
 
-    if (newEndTimeUTC <= booking.endTime) {
+    const newEnd = new Date(newEndTimeUTC);
+    const start = new Date(booking.startTime);
+    const currentEnd = new Date(booking.endTime);
+
+    if (newEnd <= start) {
+      return next(new AppError('New end time must be after booking start time', 400));
+    }
+
+    if (newEnd <= currentEnd) {
       return next(new AppError('New end time must be later than current end time', 400));
     }
 
@@ -231,8 +231,6 @@ const extendBooking = async (req, res, next) => {
       return next(new AppError('Unauthorized to extend this booking', 403));
     }
 
-    const carId = booking.car._id ? booking.car._id : booking.car;
-
     const updatedBooking = await bookingService.extendBooking(
       bookingId,
       req.user.id,
@@ -240,10 +238,9 @@ const extendBooking = async (req, res, next) => {
     );
 
     await agenda.cancel({ "data.bookingId": bookingId, name: "end booking" });
-
-    await agenda.schedule(new Date(newEndTimeUTC), "end booking", {
+    await agenda.schedule(newEnd, "end booking", {
       bookingId: bookingId,
-      carId: carId, 
+      carId: booking.car,
     });
 
     const responseBooking = {
@@ -251,19 +248,21 @@ const extendBooking = async (req, res, next) => {
       startTimeLocal: convertFromUTC(updatedBooking.startTime, userTimezone),
       endTimeLocal: convertFromUTC(updatedBooking.endTime, userTimezone),
       startTimeFormatted: formatDateForDisplay(updatedBooking.startTime, userTimezone),
-      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone)
+      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone),
     };
 
     res.status(200).json({
       success: true,
       message: 'Booking extended successfully',
-      data: responseBooking
+      data: responseBooking,
     });
   } catch (error) {
     console.log('Extend booking error:', error.message);
     next(new AppError(error.message || 'Failed to extend booking', 400));
   }
 };
+
+
 
 const getCarBookings = async (req, res, next) => {
   try {
