@@ -91,7 +91,7 @@ const deleteCar = async (req, res, next) => {
 const toggleCarBooking = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const carId = req.params;
+    const carId = req.params.id;
     const { isBookable } = req.body;
 
     const updatedCar = await carService.toggleCarBooking(carId, userId, isBookable);
@@ -110,7 +110,7 @@ const toggleCarBooking = async (req, res, next) => {
   }
 };
 
-const searchAvalaibleCars = async (req, res, next) => {
+const searchAvailableCars = async (req, res, next) => {
   try {
     const { startTime, endTime, timezone='Asia/Karachi' } = req.query;
     if (!startTime || !endTime) {
@@ -142,5 +142,5 @@ module.exports = {
   updateCar,
   deleteCar,
   toggleCarBooking,
-  searchAvalaibleCars
+  searchAvailableCars
 };

@@ -10,13 +10,15 @@ const {
   viewCar,
   updateCar,
   deleteCar,
-  toggleCarBooking
+  toggleCarBooking,
+  searchAvailableCars
 } = require('../controllers/carController');
 
 
 router.get('/', verifyToken, getCarsWithOwners);
 router.post('/', verifyToken, validateCar, addCar);
 router.get('/:id', verifyToken, viewCar);
+router.get('/search', verifyToken, searchAvailableCars);
 router.put('/:id', verifyToken, validateCar, updateCar);
 router.delete('/:id', verifyToken, deleteCar);
 router.patch('/:id/toggle-booking', verifyToken, toggleCarBooking);
