@@ -1,4 +1,5 @@
 ﻿const Car = require('../models/CarModel'); 
+const Booking = require('../models/BookingModel'); 
 const mongoose = require('mongoose');
 
 const createCar = async (carData) => {
@@ -78,6 +79,29 @@ const deleteCarByOwner = async (carId, ownerId) => {
   }
 };
 
+const getOngoingBookings = async (carId, status = 'ongoing') => {
+  try {
+    return await Booking.find({ 
+      car: carId, 
+      status: status 
+    });
+  } catch (error) {
+    throw new Error(`Error fetching ongoing bookings: ${error.message}`);
+  }
+};
+
+const toggleCarBooking = async (carId, userId, updateData) => {
+  try {
+    return await Car.findOneAndUpdate(
+      { _id: carId, owner: userId, isDeleted: false },
+      updateData,
+      { new: true, runValidators: true }
+    );
+  } catch (error) {
+    throw new Error(`Error toggling car booking status: ${error.message}`);
+  }
+};
+
 
 module.exports = {
   createCar, 
@@ -86,4 +110,6 @@ module.exports = {
   getCarsByOwner,
   updateCarByOwner,
   deleteCarByOwner, 
+  getOngoingBookings,
+  toggleCarBooking
 }

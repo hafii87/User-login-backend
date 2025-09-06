@@ -10,6 +10,7 @@ const {
   cancelBooking,
   extendBooking,
   getCarBookings
+  
 } = require('../controllers/bookingController');
 
 router.post('/BookNow', verifyToken, validateBooking, bookCar);

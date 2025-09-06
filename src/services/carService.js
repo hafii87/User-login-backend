@@ -1,6 +1,8 @@
 ﻿const carWrapper = require('../wrappers/carWrapper');
 const { AppError } = require('../middleware/errorhandler');
 const Car = require('../models/CarModel');
+const Booking = require('../models/BookingModel');
+const { convertToUTC, isValidTimezone } = require('../utils/timezoneUtils');
 
 const addCar = async (carData, userId) => {
   try {
@@ -47,7 +49,7 @@ const deleteCar = async (carId, userId) => {
 
 const toggleCarBooking = async (carId, userId, isBookable) => {
   try {
-    const ongoingBookings = await carWrapper.getOngoingBookings(carId,'ongoing');
+    const ongoingBookings = await Booking.find({ car: carId, status: 'ongoing' });
     if (!isBookable && ongoingBookings.length > 0) {
       throw new Error('Cannot change booking status while there are ongoing bookings');
     }
@@ -60,15 +62,58 @@ const toggleCarBooking = async (carId, userId, isBookable) => {
   }
 };
 
-const findAvaliableCars = async ({ startTime, endTime, timezone }) => {
+const findAvailableCars = async ({ startTime, endTime, timezone }) => {
   try {
+    if (!isValidTimezone(timezone)) {
+      throw new Error('Invalid timezone provided');
+    }
+
     const startUTC = convertToUTC(startTime, timezone);
     const endUTC = convertToUTC(endTime, timezone);
     
-    const allCars = await Car.find({ isDeleted: false, isActive: true,  isBookable: true }).populate('owner', 'username email');
+    if (new Date(startTime) >= new Date(endTime)) {
+      throw new Error('End time must be after start time');
+    }
 
-     const availableCars = [];
+    if (new Date(startTime) < new Date()) {
+      throw new Error('Start time must be in the future');
+    }
+
+    const allCars = await Car.find({ 
+      isDeleted: false, 
+      isActive: true,  
+      isBookable: true 
+    }).populate('owner', 'username email');
+
+    const availableCars = [];
+    
     for (let car of allCars) {
+      const preferences = car.bookingPreferences || {};
+      
+      const durationHours = (endUTC - startUTC) / (1000 * 60 * 60);
+      if (durationHours < (preferences.minBookingHours || 1)) {
+        continue;
+      }
+      
+      const durationDays = durationHours / 24;
+      if (durationDays > (preferences.maxBookingDays || 7)) {
+        continue;
+      }
+
+      const advanceDays = (startUTC - new Date()) / (1000 * 60 * 60 * 24);
+      if (advanceDays > (preferences.advanceBookingDays || 30)) {
+        continue;
+      }
+      
+      if (preferences.blackoutDates && preferences.blackoutDates.length > 0) {
+        const isInBlackout = preferences.blackoutDates.some(blackout => {
+          return startUTC < new Date(blackout.endDate) && endUTC > new Date(blackout.startDate);
+        });
+        if (isInBlackout) {
+          continue;
+        }
+      }
+      
       const conflicts = await Booking.find({
         car: car._id,
         status: { $in: ['upcoming', 'ongoing'] },
@@ -77,9 +122,16 @@ const findAvaliableCars = async ({ startTime, endTime, timezone }) => {
       });
       
       if (conflicts.length === 0) {
-        availableCars.push(car);
+        availableCars.push({
+          ...car.toObject(),
+          availabilityChecked: true,
+          searchTimezone: timezone,
+          searchStartTime: startTime,
+          searchEndTime: endTime
+        });
       }
     }
+    
     return availableCars;
   } catch (error) {
     throw new Error(`Error finding available cars: ${error.message}`);
@@ -93,5 +145,5 @@ module.exports = {
   updateCar,
   deleteCar,
   toggleCarBooking,
-  findAvaliableCars
+  findAvailableCars
 };
