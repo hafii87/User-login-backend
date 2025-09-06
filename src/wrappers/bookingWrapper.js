@@ -105,6 +105,18 @@ const updateBooking = async (bookingId, updateData) => {
   }
 };
 
+const createBookingWithSession = async (data, session) => {
+  try {
+    const [booking] = await Booking.create([data], { session });
+    return await Booking.findById(booking._id)
+      .populate('car', 'make model year price owner')
+      .populate('user', 'username email')
+      .session(session);
+  } catch (error) {
+    throw new Error(`Error creating booking: ${error.message}`);
+  }
+};
+
 module.exports = {
   createBooking,
   findOverlapping,
@@ -112,5 +124,6 @@ module.exports = {
   getBookingById,
   cancelBooking,
   getCarBookings,
-  updateBooking
+  updateBooking,
+  createBookingWithSession
 };

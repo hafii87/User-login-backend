@@ -42,8 +42,6 @@ const bookCar = async (req, res, next) => {
       status: "upcoming",
     });
 
-    await Car.findByIdAndUpdate(carId, { isAvailable: false });
-
     await agenda.schedule(new Date(startTimeUTC), "start booking", {
       bookingId: booking.id,
       carId: carId,
