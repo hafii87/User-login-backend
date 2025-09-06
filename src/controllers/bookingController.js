@@ -42,8 +42,6 @@ const bookCar = async (req, res, next) => {
       status: "upcoming",
     });
 
-    await Car.findByIdAndUpdate(carId, { isAvailable: false });
-
     await agenda.schedule(new Date(startTimeUTC), "start booking", {
       bookingId: booking.id,
       carId: carId,
@@ -208,8 +206,24 @@ const extendBooking = async (req, res, next) => {
     const bookingId = req.params.id;
     const { newEndTime } = req.body;
 
+    if (!bookingId) {
+      return next(new AppError('Booking ID is required', 400));
+    }
+    if (!newEndTime) {
+      return next(new AppError('New end time is required', 400));
+    }
+
     const booking = await bookingService.getBookingById(bookingId);
     if (!booking) return next(new AppError('Booking not found', 404));
+
+    console.log('Booking object:', JSON.stringify(booking, null, 2));
+
+    if (!booking.startTime) {
+      return next(new AppError('Booking start time is missing', 500));
+    }
+    if (!booking.endTime) {
+      return next(new AppError('Booking end time is missing', 500));
+    }
 
     const userTimezone = booking.bookingTimezone || 'Asia/Karachi';
     const newEndTimeUTC = convertToUTC(newEndTime, userTimezone);
@@ -236,11 +250,12 @@ const extendBooking = async (req, res, next) => {
       req.user.id,
       newEndTimeUTC
     );
-
     await agenda.cancel({ "data.bookingId": bookingId, name: "end booking" });
+    
+    const carId = booking.car.id ? booking.car.id : booking.car;
     await agenda.schedule(newEnd, "end booking", {
       bookingId: bookingId,
-      carId: booking.car,
+      carId: carId,
     });
 
     const responseBooking = {
@@ -258,10 +273,10 @@ const extendBooking = async (req, res, next) => {
     });
   } catch (error) {
     console.log('Extend booking error:', error.message);
+    console.log('Error stack:', error.stack);
     next(new AppError(error.message || 'Failed to extend booking', 400));
   }
 };
-
 
 
 const getCarBookings = async (req, res, next) => {

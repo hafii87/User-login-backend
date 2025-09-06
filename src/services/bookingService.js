@@ -1,40 +1,49 @@
 const agenda = require('../jobs/agenda');
+const mongoose = require('mongoose');
 const bookingWrapper = require('../wrappers/bookingWrapper');
 const carWrapper = require('../wrappers/carWrapper');
 
 const bookCar = async (bookingData) => {
+  const session = await mongoose.startSession();
+  
   try {
-    const { user: userId, car: carId, startTime, endTime, bookingTimezone } = bookingData;
+    return await session.withTransaction(async () => {
+      const { user: userId, car: carId, startTime, endTime, bookingTimezone } = bookingData;
 
-    const car = await carWrapper.getCarById(carId);
-    if (!car) throw new Error('Car not found');
+      const car = await carWrapper.getCarById(carId);
+      if (!car) {
+        throw new Error('Car not found');
+      }
 
-    if (!car.isAvailable) {
-      throw new Error('Car is not available');
-    }
+      if (!car.isAvailable) {
+        throw new Error('Car is not available');
+      }
 
-    const overlaps = await bookingWrapper.findOverlapping(
-      carId,
-      new Date(startTime),
-      new Date(endTime)
-    );
-    if (overlaps.length > 0) {
-      throw new Error('The car is already booked for the selected time range');
-    }
+      const conflicts = await bookingWrapper.findOverlapping(
+        carId,
+        new Date(startTime),
+        new Date(endTime)
+      );
+      
+      if (conflicts.length > 0) {
+        throw new Error('Car already booked for this time slot');
+      }
 
-    const booking = await bookingWrapper.createBooking({
-      user: userId,
-      car: carId,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-      isStarted: false,
-      status: 'upcoming',
-      bookingTimezone
+      const booking = await bookingWrapper.createBookingWithSession({
+        user: userId,
+        car: carId,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        status: 'upcoming',
+        bookingTimezone
+      }, session);
+
+      return booking;
     });
-
-    return booking;
-  } catch (err) {
-    throw new Error(`Booking failed: ${err.message}`);
+  } catch (error) {
+    throw new Error(`Booking failed: ${error.message}`);
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -116,7 +125,6 @@ const extendBooking = async (bookingId, userId, newEndTimeUTC) => {
     throw new Error(`Error extending booking: ${err.message}`);
   }
 };
-
 
 const getCarBookings = async (carId, status = null) => {
   try {

@@ -88,10 +88,59 @@ const deleteCar = async (req, res, next) => {
   }
 };
 
+const toggleCarBooking = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const carId = req.params;
+    const { isBookable } = req.body;
+
+    const updatedCar = await carService.toggleCarBooking(carId, userId, isBookable);
+
+    if (!updatedCar) {
+      return next(new AppError('Car not found or unauthorized', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Car booking status updated successfully',
+      data: updatedCar,
+    });
+  } catch (error) {
+    next(new AppError(error.message || 'Failed to update car booking status', 400));
+  }
+};
+
+const searchAvalaibleCars = async (req, res, next) => {
+  try {
+    const { startTime, endTime, timezone='Asia/Karachi' } = req.query;
+    if (!startTime || !endTime) {
+      return next(new AppError('Please provide startTime and endTime', 400));
+    }
+
+    const  cars = await carService.findAvaliableCars(
+      {
+        startTime,
+        endTime,
+        timezone
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      count: cars.length,
+      data: cars,
+    });
+  } catch (error) {
+    next(new AppError(error.message || 'Failed to search available cars', 400));
+  }
+};
+
 module.exports = {
   addCar,
   getCarsWithOwners,
   viewCar,
   updateCar,
   deleteCar,
+  toggleCarBooking,
+  searchAvalaibleCars
 };

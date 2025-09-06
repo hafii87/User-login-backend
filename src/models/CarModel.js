@@ -1,3 +1,5 @@
+const { string } = require('joi');
+const { max } = require('moment-timezone');
 const mongoose = require('mongoose');
 
 const carSchema = new mongoose.Schema({
@@ -45,6 +47,17 @@ const carSchema = new mongoose.Schema({
   deletedBy: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
+  },
+  isBookable: { 
+    type: Boolean, 
+    default: true,
+    index: true
+  },
+  bookingPreferences: {
+    minBookingHours: { type: Number, default: 1, min: 0.5 },
+    maxBookingDays: { type: Number, default: 7, min: 1 },
+    advanceBookingDays: { type: Number, default: 30, min: 1 },
+    blackoutDates: [{ startDate: Date, endDate: Date, reason: String }]
   }
 }, { timestamps: true });
 

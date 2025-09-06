@@ -20,7 +20,10 @@ const bookingSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: function (value) {
-        return value > this.startTime;
+        if (this.isNew || this.isModified('startTime')) {
+          return value > this.startTime;
+        }
+        return value && value instanceof Date;
       },
       message: 'End time must be after start time',
     },
@@ -34,9 +37,13 @@ const bookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['upcoming', 'ongoing', 'completed'],
+    enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
     default: 'upcoming',
   },
+  bookingTimezone: {
+    type: String,
+    default: 'Asia/Karachi'
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

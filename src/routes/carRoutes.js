@@ -10,6 +10,7 @@ const {
   viewCar,
   updateCar,
   deleteCar,
+  toggleCarBooking
 } = require('../controllers/carController');
 
 
@@ -18,5 +19,6 @@ router.post('/', verifyToken, validateCar, addCar);
 router.get('/:id', verifyToken, viewCar);
 router.put('/:id', verifyToken, validateCar, updateCar);
 router.delete('/:id', verifyToken, deleteCar);
+router.patch('/:id/toggle-booking', verifyToken, toggleCarBooking);
 
 module.exports = router;
