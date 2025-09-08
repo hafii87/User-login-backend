@@ -1,5 +1,5 @@
 const Car = require('../models/CarModel'); 
-const Booking = require('../models/BookingModel'); 
+const Booking = require('../models/bookingModel'); 
 const mongoose = require('mongoose');
 
 const createBooking = async (data) => {

@@ -1,5 +1,3 @@
-const { string } = require('joi');
-const { max } = require('moment-timezone');
 const mongoose = require('mongoose');
 
 const carSchema = new mongoose.Schema({

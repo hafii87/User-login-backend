@@ -1,7 +1,7 @@
 ﻿const carWrapper = require('../wrappers/carWrapper');
 const { AppError } = require('../middleware/errorhandler');
 const Car = require('../models/CarModel');
-const Booking = require('../models/BookingModel');
+const Booking = require('../models/bookingModel');
 const { convertToUTC, isValidTimezone } = require('../utils/timezoneUtils');
 
 const addCar = async (carData, userId) => {

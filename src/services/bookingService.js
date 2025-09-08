@@ -4,44 +4,51 @@ const bookingWrapper = require('../wrappers/bookingWrapper');
 const carWrapper = require('../wrappers/carWrapper');
 
 const bookCar = async (bookingData) => {
-  const session = await mongoose.startSession();
-  
   try {
-    return await session.withTransaction(async () => {
-      const { user: userId, car: carId, startTime, endTime, bookingTimezone } = bookingData;
+    const { user: userId, car: carId, startTime, endTime, bookingTimezone } = bookingData;
 
-      const car = await carWrapper.getCarById(carId);
-      if (!car) {
-        throw new Error('Car not found');
-      }
+    const car = await carWrapper.getCarById(carId);
+    if (!car) {
+      throw new Error('Car not found');
+    }
 
-      if (!car.isAvailable) {
-        throw new Error('Car is not available');
-      }
+    if (!car.isAvailable) {
+      throw new Error('Car is not available');
+    }
 
-      if (!car.isBookable) {
-        throw new Error('Car is not accepting bookings');
-      }
+    if (!car.isBookable) {
+      throw new Error('Car is not accepting bookings');
+    }
 
-      const preferences = car.bookingPreferences || {};
+    const preferences = car.bookingPreferences || {};
+    
+    const durationHours = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
+    if (durationHours < (preferences.minBookingHours || 1)) {
+      throw new Error(`Minimum booking duration is ${preferences.minBookingHours || 1} hours`);
+    }
+    
+    const durationDays = durationHours / 24;
+    if (durationDays > (preferences.maxBookingDays || 7)) {
+      throw new Error(`Maximum booking duration is ${preferences.maxBookingDays || 7} days`);
+    }
+    
+    const advanceDays = (new Date(startTime) - new Date()) / (1000 * 60 * 60 * 24);
+    if (advanceDays > (preferences.advanceBookingDays || 30)) {
+      throw new Error(`Cannot book more than ${preferences.advanceBookingDays || 30} days in advance`);
+    }
+    
+    if (preferences.blackoutDates && preferences.blackoutDates.length > 0) {
+      const isInBlackout = preferences.blackoutDates.some(blackout => {
+        const blackoutStart = new Date(blackout.startDate);
+        const blackoutEnd = new Date(blackout.endDate);
+        const bookingStart = new Date(startTime);
+        const bookingEnd = new Date(endTime);
+        
+        return bookingStart < blackoutEnd && bookingEnd > blackoutStart;
+      });
       
-      const durationHours = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
-      if (durationHours < (preferences.minBookingHours || 1)) {
-        throw new Error(`Minimum booking duration is ${preferences.minBookingHours || 1} hours`);
-      }
-      
-      const durationDays = durationHours / 24;
-      if (durationDays > (preferences.maxBookingDays || 7)) {
-        throw new Error(`Maximum booking duration is ${preferences.maxBookingDays || 7} days`);
-      }
-      
-      const advanceDays = (new Date(startTime) - new Date()) / (1000 * 60 * 60 * 24);
-      if (advanceDays > (preferences.advanceBookingDays || 30)) {
-        throw new Error(`Cannot book more than ${preferences.advanceBookingDays || 30} days in advance`);
-      }
-      
-      if (preferences.blackoutDates && preferences.blackoutDates.length > 0) {
-        const isInBlackout = preferences.blackoutDates.some(blackout => {
+      if (isInBlackout) {
+        const conflictingBlackout = preferences.blackoutDates.find(blackout => {
           const blackoutStart = new Date(blackout.startDate);
           const blackoutEnd = new Date(blackout.endDate);
           const bookingStart = new Date(startTime);
@@ -50,45 +57,32 @@ const bookCar = async (bookingData) => {
           return bookingStart < blackoutEnd && bookingEnd > blackoutStart;
         });
         
-        if (isInBlackout) {
-          const conflictingBlackout = preferences.blackoutDates.find(blackout => {
-            const blackoutStart = new Date(blackout.startDate);
-            const blackoutEnd = new Date(blackout.endDate);
-            const bookingStart = new Date(startTime);
-            const bookingEnd = new Date(endTime);
-            
-            return bookingStart < blackoutEnd && bookingEnd > blackoutStart;
-          });
-          
-          throw new Error(`Car is not available during this period: ${conflictingBlackout.reason || 'Blackout period'}`);
-        }
+        throw new Error(`Car is not available during this period: ${conflictingBlackout.reason || 'Blackout period'}`);
       }
+    }
 
-      const conflicts = await bookingWrapper.findOverlapping(
-        carId,
-        new Date(startTime),
-        new Date(endTime)
-      );
-      
-      if (conflicts.length > 0) {
-        throw new Error('Car already booked for this time slot');
-      }
+    const conflicts = await bookingWrapper.findOverlapping(
+      carId,
+      new Date(startTime),
+      new Date(endTime)
+    );
+    
+    if (conflicts.length > 0) {
+      throw new Error('Car already booked for this time slot');
+    }
 
-      const booking = await bookingWrapper.createBookingWithSession({
-        user: userId,
-        car: carId,
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        status: 'upcoming',
-        bookingTimezone
-      }, session);
-
-      return booking;
+    const booking = await bookingWrapper.createBooking({
+      user: userId,
+      car: carId,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      status: 'upcoming',
+      bookingTimezone
     });
+
+    return booking;
   } catch (error) {
     throw new Error(`Booking failed: ${error.message}`);
-  } finally {
-    await session.endSession();
   }
 };
 

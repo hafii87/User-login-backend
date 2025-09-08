@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');   
+const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
   user: {
@@ -13,17 +13,17 @@ const bookingSchema = new mongoose.Schema({
   },
   startTime: {
     type: Date,
-    required: true,
+    required: [true, 'Booking start time is required'],
   },
   endTime: {
     type: Date,
-    required: true,
+    required: [true, 'Booking end time is required'],
     validate: {
       validator: function (value) {
         if (this.isNew || this.isModified('startTime')) {
           return value > this.startTime;
         }
-        return value && value instanceof Date;
+        return value > this.startTime;
       },
       message: 'End time must be after start time',
     },
@@ -42,8 +42,28 @@ const bookingSchema = new mongoose.Schema({
   },
   bookingTimezone: {
     type: String,
-    default: 'Asia/Karachi'
-  }
-}, { timestamps: true });
+    default: 'Asia/Karachi',
+  },
+}, { 
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    versionKey: false,
+    transform: function (doc, ret) {
+      ret.id = ret._id;
+      delete ret._id;
+    }
+  },
+  toObject: { virtuals: true }
+});
 
-module.exports = mongoose.models.Booking || mongoose.model('Booking', bookingSchema);
+bookingSchema.pre('save', function (next) {
+  if (this.isModified('endTime') && !this.isNew) {
+    this.isExtended = true;
+    this.extendedEndTime = this.endTime;
+  }
+  next();
+});
+
+const Booking = mongoose.models.Booking || mongoose.model('Booking', bookingSchema);
+module.exports = Booking;
