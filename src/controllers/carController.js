@@ -117,13 +117,11 @@ const searchAvailableCars = async (req, res, next) => {
       return next(new AppError('Please provide startTime and endTime', 400));
     }
 
-    const  cars = await carService.findAvaliableCars(
-      {
-        startTime,
-        endTime,
-        timezone
-      }
-    );
+    const cars = await carService.findAvailableCars({
+      startTime,
+      endTime,
+      timezone
+    });
 
     res.status(200).json({
       success: true,
