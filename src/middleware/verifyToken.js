@@ -15,7 +15,7 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.id).select('password');
     if (!user) {
       return next(new AppError('User not found', 404));
     }
@@ -23,7 +23,9 @@ const verifyToken = async (req, res, next) => {
     req.user = {
       id: user.id.toString(),
       username: user.username,
-      email: user.email
+      email: user.email,
+      role: user.role || 'user', 
+      timezone: user.timezone
     };
     
     next();

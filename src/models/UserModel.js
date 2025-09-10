@@ -5,7 +5,12 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true, trim: true },
     email: { type: String, required: true, unique: true, trim: true },
     password: { type: String, required: true },
-    timezone: { type: String, default: 'Asia/Karachi' }
+    timezone: { type: String, default: 'Asia/Karachi' },
+    role: { 
+      type: String, 
+      enum: ['user', 'admin'], 
+      default: 'user',
+      index: true}
   },
   { timestamps: true }
 );

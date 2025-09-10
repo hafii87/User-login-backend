@@ -1,9 +1,9 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const User = require('../src/models/UserModel');
-const Car = require('../src/models/CarModel');
-const Booking = require('../src/models/bookingModel');
+const User = require('../models/UserModel');
+const Car = require('../models/CarModel');
+const Booking = require('../models/bookingModel');
 
 const connectDB = async () => {
   try {
@@ -26,7 +26,7 @@ const seedData = async () => {
     
     const users = await User.create([
       {
-        username: ' muhammad hafeez',
+        username: 'muhammad hafeez',
         email: 'hafeez32@gmail.com',
         password: hashedPassword,
         role: 'user',
@@ -34,14 +34,14 @@ const seedData = async () => {
       },
       {
         username: 'abdullah',
-        email: 'abdullah56gmail.com',
+        email: 'abdullah56@gmail.com', 
         password: hashedPassword,
         role: 'user',
         timezone: 'Asia/Karachi'
       },
       {
         username: 'system_admin',
-        email: 'admin76gmail.com',
+        email: 'admin76@gmail.com', 
         password: hashedPassword,
         role: 'admin',
         timezone: 'Asia/Karachi'
@@ -117,6 +117,13 @@ const seedData = async () => {
       }
     ]);
     console.log('Created sample bookings...');
+    
+    console.log(' ADMIN LOGIN CREDENTIALS ');
+    console.log('Email: admin76@gmail.com');
+    console.log('Password: password123');
+    console.log('Role: admin');
+    console.log('===============================\n');
+    
     console.log('Sample Users Created:');
     users.forEach(user => {
       console.log(`- ${user.username} (${user.email}) - Role: ${user.role}`);
@@ -132,7 +139,6 @@ const seedData = async () => {
       console.log(`- Booking ID: ${booking._id} - Status: ${booking.status}`);
     });
 
-    console.log('Default Login Credentials:');
   } catch (error) {
     console.error('Seeding error:', error);
   } finally {
