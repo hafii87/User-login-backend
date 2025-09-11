@@ -309,11 +309,78 @@ const getCarBookings = async (req, res, next) => {
   }
 };
 
+const bookGroupCar = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { carId, groupId, startTime, endTime } = req.body;
+
+    if (!userId) return next(new AppError('userId is required', 400));
+    if (!carId) return next(new AppError('carId is required', 400));
+    if (!groupId) return next(new AppError('groupId is required', 400));
+    if (!startTime) return next(new AppError('startTime is required', 400));
+    if (!endTime) return next(new AppError('endTime is required', 400));
+
+    let userTimezone = req.body.timezone || req.user.timezone || 'Asia/Karachi';
+
+    if (!isValidTimezone(userTimezone)) {
+        return next(new AppError('Invalid timezone', 400));
+    }
+
+    const startTimeUTC = convertToUTC(startTime, userTimezone);
+    const endTimeUTC = convertToUTC(endTime, userTimezone);
+
+    if (new Date(startTime) >= new Date(endTime)) {
+        return next(new AppError('End time must be after start time', 400));
+    }
+
+    if (new Date(startTime) < new Date()) {
+        return next(new AppError('Start time must be in the future', 400));
+    }
+
+    const booking = await bookingService.bookGroupCar({
+      user: userId,
+      car: carId,
+      group: groupId,
+      startTime: startTimeUTC,
+      endTime: endTimeUTC,
+      bookingTimezone: userTimezone,
+    });
+
+    await agenda.schedule(new Date(startTimeUTC), "start booking", {
+      bookingId: booking.id,
+      carId: carId,
+    });
+
+    await agenda.schedule(new Date(endTimeUTC), "end booking", {
+      bookingId: booking.id,
+      carId: carId,
+    });
+
+    const responseBooking = {
+      ...booking.toObject(),
+      startTimeLocal: convertFromUTC(booking.startTime, userTimezone),
+      endTimeLocal: convertFromUTC(booking.endTime, userTimezone),
+      startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Group car booking created successfully',
+      data: responseBooking
+    });
+  } catch (error) {
+    console.error('Group Booking Controller Error:', error); 
+    next(new AppError(error.message || 'Failed to create group booking', 400));
+  }
+};
+
 module.exports = {
   bookCar,
   getUserBookings,
   getBookingById,
   cancelBooking,
   extendBooking,
-  getCarBookings
+  getCarBookings,
+  bookGroupCar
 };

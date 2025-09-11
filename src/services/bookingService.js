@@ -2,7 +2,7 @@ const agenda = require('../jobs/agenda');
 const mongoose = require('mongoose');
 const bookingWrapper = require('../wrappers/bookingWrapper');
 const carWrapper = require('../wrappers/carWrapper');
-const groupWrapper = require('../wrappers/grouWrapper');
+const groupWrapper = require('../wrappers/groupWrapper');
 
 const bookCar = async (bookingData) => {
   try {
@@ -231,6 +231,7 @@ const bookGroupCar = async (bookingData) => {
 
     const userWrapper = require('../wrappers/userWrapper');
     const user = await userWrapper.findById(userId);
+
     const groupService = require('./groupService');
     const eligibilityCheck = await groupService.checkUserEligibility(user, group.rules);
     
@@ -257,6 +258,14 @@ const bookGroupCar = async (bookingData) => {
       status: group.preferences.autoApproveBookings ? 'upcoming' : 'pending',
       bookingTimezone
     });
+
+    return booking;
+    
+  } catch (error) {
+    throw new Error(`Group booking failed: ${error.message}`);
+  }
+};
+
 
 module.exports = {
   bookCar,
