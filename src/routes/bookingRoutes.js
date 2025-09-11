@@ -1,23 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const verifyToken = require('../middleware/verifyToken'); 
-const { validateBooking, validateExtendingBooking } = require('../validators/bookingValidators');
+const verifyToken = require('../middleware/verifyToken');
+const { validateGroup, validateGroupMember, validateGroupCar } = require('../validators/groupValidators');
 
 const {
-  bookCar,
-  getUserBookings,
-  getBookingById,
-  cancelBooking,
-  extendBooking,
-  getCarBookings
-  
-} = require('../controllers/bookingController');
+  createGroup,
+  getUserGroups,
+  getGroupDetails,
+  addMemberToGroup,
+  addCarToGroup,
+  updateGroupPreferences,
+  updateGroupRules,
+  getGroupCars
+} = require('../controllers/groupController');
 
-router.post('/BookNow', verifyToken, validateBooking, bookCar);
-router.get('/MyBookings', verifyToken, getUserBookings);
-router.get('/ViewBooking/:id', verifyToken, getBookingById);
-router.patch('/CancelBooking/:id', verifyToken, cancelBooking);
-router.patch('/ExtendBooking/:id', verifyToken, validateExtendingBooking, extendBooking);
-router.get('/CarBookings/:id', verifyToken, getCarBookings);
+router.use(verifyToken);
+
+router.post('/', validateGroup, createGroup);
+router.get('/my-groups', getUserGroups);
+router.get('/:id', getGroupDetails);
+router.post('/:id/members', validateGroupMember, addMemberToGroup);
+router.post('/:id/cars', validateGroupCar, addCarToGroup);
+router.get('/:id/cars', getGroupCars);
+router.put('/:id/preferences', updateGroupPreferences);
+router.put('/:id/rules', updateGroupRules);
 
 module.exports = router;
