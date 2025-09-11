@@ -2,6 +2,7 @@ const agenda = require('../jobs/agenda');
 const mongoose = require('mongoose');
 const bookingWrapper = require('../wrappers/bookingWrapper');
 const carWrapper = require('../wrappers/carWrapper');
+const groupWrapper = require('../wrappers/grouWrapper');
 
 const bookCar = async (bookingData) => {
   try {
@@ -210,6 +211,53 @@ const checkCarAvailability = async (carId, startTime, endTime, excludeBooking = 
   }
 };
 
+
+const bookGroupCar = async (bookingData) => {
+  try {
+    const { user: userId, car: carId, group: groupId, startTime, endTime, bookingTimezone } = bookingData;
+
+    const group = await groupWrapper.getGroupById(groupId);
+    if (!group) throw new Error('Group not found');
+
+    const member = group.members.find(m => 
+      m.user._id.toString() === userId.toString() && m.status === 'active'
+    );
+    if (!member) throw new Error('You are not an active member of this group');
+
+    const carInGroup = group.cars.some(car => 
+      car._id.toString() === carId.toString()
+    );
+    if (!carInGroup) throw new Error('Car is not available in this group');
+
+    const userWrapper = require('../wrappers/userWrapper');
+    const user = await userWrapper.findById(userId);
+    const groupService = require('./groupService');
+    const eligibilityCheck = await groupService.checkUserEligibility(user, group.rules);
+    
+    if (!eligibilityCheck.eligible) {
+      throw new Error(`You don't meet group requirements: ${eligibilityCheck.reasons.join(', ')}`);
+    }
+
+    const durationHours = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
+    if (durationHours > group.preferences.maxBookingDuration) {
+      throw new Error(`Booking duration exceeds group limit of ${group.preferences.maxBookingDuration} hours`);
+    }
+
+    const advanceDays = (new Date(startTime) - new Date()) / (1000 * 60 * 60 * 24);
+    if (advanceDays > group.preferences.advanceBookingLimit) {
+      throw new Error(`Cannot book more than ${group.preferences.advanceBookingLimit} days in advance`);
+    }
+
+    const booking = await bookingWrapper.createBooking({
+      user: userId,
+      car: carId,
+      group: groupId,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      status: group.preferences.autoApproveBookings ? 'upcoming' : 'pending',
+      bookingTimezone
+    });
+
 module.exports = {
   bookCar,
   getUserBookings,
@@ -217,5 +265,6 @@ module.exports = {
   cancelBooking,
   extendBooking,
   getCarBookings,
-  checkCarAvailability
+  checkCarAvailability,
+  bookGroupCar
 };
