@@ -29,6 +29,57 @@ const getUserWithCars = async (userId) => {
   });
 };
 
+const addGroupMembership = async (userId, groupId, role, status) => {
+  try {
+    return await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          groupMemberships: {
+            group: groupId,
+            role: role,
+            status: status
+          }
+        }
+      },
+      { new: true }
+    );
+  } catch (error) {
+    throw new Error(`Error adding group membership: ${error.message}`);
+  }
+};
+
+const removeGroupMembership = async (userId, groupId) => {
+  try {
+    return await User.findByIdAndUpdate(
+      userId,
+      {
+        $pull: {
+          groupMemberships: { group: groupId }
+        }
+      },
+      { new: true }
+    );
+  } catch (error) {
+    throw new Error(`Error removing group membership: ${error.message}`);
+  }
+};
+
+const getUserGroups = async (userId) => {
+  try {
+    return await User.findById(userId)
+      .populate({
+        path: 'groupMemberships.group',
+        match: { isActive: true },
+        select: 'name description privacy'
+      })
+      .select('groupMemberships');
+  } catch (error) {
+    throw new Error(`Error fetching user groups: ${error.message}`);
+  }
+};
+
+
 module.exports = {
   createUser,
   findByEmail,
@@ -36,4 +87,7 @@ module.exports = {
   updateById,
   deleteById,
   getUserWithCars,
+  addGroupMembership,
+  removeGroupMembership,
+  getUserGroups
 };
