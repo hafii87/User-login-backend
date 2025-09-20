@@ -1,6 +1,5 @@
 const Agenda = require('agenda');
 const Booking = require('../models/bookingModel');
-const Car = require('../models/CarModel');
 
 const agenda = new Agenda({
   db: {

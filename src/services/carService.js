@@ -1,6 +1,6 @@
 ﻿const carWrapper = require('../wrappers/carWrapper');
 const { AppError } = require('../middleware/errorhandler');
-const Car = require('../models/CarModel');
+const Car = require('../models/carModel');
 const Booking = require('../models/bookingModel');
 const { convertToUTC, isValidTimezone } = require('../utils/timezoneUtils');
 

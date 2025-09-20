@@ -1,5 +1,5 @@
-const User = require('../models/UserModel');
-const Car = require('../models/CarModel');
+const User = require('../models/userModel');
+const Car = require('../models/carModel');
 const Booking = require('../models/bookingModel');
 const { AppError } = require('../middleware/errorhandler');
 const { convertFromUTC, formatDateForDisplay, isValidTimezone } = require('../utils/timezoneUtils');
