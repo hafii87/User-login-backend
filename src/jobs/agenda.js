@@ -1,11 +1,11 @@
 const Agenda = require('agenda');
 const Booking = require('../models/bookingModel');
+const Car = require('../models/CarModel'); 
 
 const agenda = new Agenda({
   db: {
-    address: process.env.MONGODB_URI || 'mongodb://localhost:27017/User-login',
+    address: process.env.MONGODB_URI,
     collection: 'jobs',
-    options: { useUnifiedTopology: true },
   },
 });
 
@@ -22,7 +22,6 @@ agenda.define('start booking', async (job) => {
     if (booking?.car) {
       await Car.findByIdAndUpdate(booking.car, { isAvailable: false });
     }
-
   } catch (err) {
     console.error(` Error in start booking job: ${err.message}`);
   }
@@ -41,7 +40,6 @@ agenda.define('end booking', async (job) => {
     if (booking?.car) {
       await Car.findByIdAndUpdate(booking.car, { isAvailable: true });
     }
-
   } catch (err) {
     console.error(` Error in end booking job: ${err.message}`);
   }

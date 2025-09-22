@@ -25,9 +25,6 @@ const bookingSchema = new mongoose.Schema({
     required: [true, 'Booking end time is required'],
     validate: {
       validator: function (value) {
-        if (this.isNew || this.isModified('startTime')) {
-          return value > this.startTime;
-        }
         return value > this.startTime;
       },
       message: 'End time must be after start time',
@@ -44,6 +41,10 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
     default: 'upcoming',
+  },
+  isStarted: {                          
+    type: Boolean,
+    default: false,
   },
   bookingTimezone: {
     type: String,
@@ -72,13 +73,13 @@ bookingSchema.pre('save', function (next) {
     this.isExtended = true;
     this.extendedEndTime = this.endTime;
   }
-  
+
   if (this.group) {
     this.bookingType = 'group';
   } else {
     this.bookingType = 'individual';
   }
-  
+
   next();
 });
 

@@ -4,10 +4,27 @@ const carSchema = new mongoose.Schema({
     make: { type: String, required: true },
     model: { type: String, required: true },
     year: { type: Number, required: true },
-    available: { type: Boolean, default: true },
-    location: String
+    isAvailable: { type: Boolean, default: true },   
+    isBookable: { type: Boolean, default: true },   
+    location: String,
+    price: { type: Number, required: true },
+    licenseNumber: { type: String, required: true, unique: true },
+
+    bookingPreferences: {                           
+        minBookingHours: { type: Number, default: 1 },
+        maxBookingDays: { type: Number, default: 7 },
+        advanceBookingDays: { type: Number, default: 30 },
+        blackoutDates: [
+            {
+                startDate: Date,
+                endDate: Date,
+                reason: String
+            }
+        ]
+    }
 }, {
     timestamps: true
 });
+const Car = mongoose.models.Car || mongoose.model('Car', carSchema);
 
-module.exports = mongoose.model('Car', carSchema);
+module.exports = Car;

@@ -1,7 +1,7 @@
 const emailService = require('../services/emailService');
 const bookingService = require('../services/bookingService');
 const User = require('../models/userModel');
-const Car = require('../models/carModel');
+const Car = require('../models/CarModel');
 const { AppError } = require('../middleware/errorhandler');
 const agenda = require('../jobs/agenda');
 const { convertToUTC, convertFromUTC, isValidTimezone, formatDateForDisplay } = require('../utils/timezoneUtils');
@@ -19,23 +19,30 @@ const bookCar = async (req, res, next) => {
     let userTimezone = req.body.timezone || req.user.timezone || 'Asia/Karachi';
 
     if (!isValidTimezone(userTimezone)) {
-        return next(new AppError('Invalid timezone', 400));
+      return next(new AppError('Invalid timezone', 400));
     }
 
     const startTimeUTC = convertToUTC(startTime, userTimezone);
     const endTimeUTC = convertToUTC(endTime, userTimezone);
 
     if (new Date(startTime) >= new Date(endTime)) {
-        return next(new AppError('End time must be after start time', 400));
+      return next(new AppError('End time must be after start time', 400));
     }
 
     if (new Date(startTime) < new Date()) {
-        return next(new AppError('Start time must be in the future', 400));
+      return next(new AppError('Start time must be in the future', 400));
     }
+
+    const car = await Car.findById(carId);
+    if (!car) {
+      return next(new AppError(`Booking failed: Car with ID ${carId} not found or has been deleted`, 400));
+    }
+
+    // if (!car.isBookable) return next(new AppError('This car is not bookable right now', 400));
 
     const booking = await bookingService.bookCar({
       user: userId,
-      car: carId,  
+      car: carId,
       startTime: startTimeUTC,
       endTime: endTimeUTC,
       isStarted: false,
@@ -58,26 +65,34 @@ const bookCar = async (req, res, next) => {
       startTimeLocal: convertFromUTC(booking.startTime, userTimezone),
       endTimeLocal: convertFromUTC(booking.endTime, userTimezone),
       startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
-      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
+      endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone),
+      car: {
+        id: car._id,
+        make: car.make,
+        model: car.model,
+        year: car.year,
+        licenseNumber: car.licenseNumber,
+      }
     };
 
     console.log(' About to send booking email to:', req.user.email);
     console.log(' Car data:', responseBooking.car);
     console.log(' Start time formatted:', responseBooking.startTimeFormatted);
 
+    await emailService.sendBookingConfirmation(req.user.email, responseBooking);
 
-await emailService.sendBookingConfirmation(req.user.email, responseBooking);
+    res.status(201).json({
+      success: true,
+      message: 'Booking created successfully. Confirmation email sent!',
+      data: responseBooking
+    });
 
-res.status(201).json({
-  success: true,
-  message: 'Booking created successfully. Confirmation email sent!',
-  data: responseBooking
-});
   } catch (error) {
-    console.error('Controller Error:', error); 
+    console.error('Controller Error:', error);
     next(new AppError(error.message || 'Failed to create booking', 400));
   }
 };
+
 
 const getUserBookings = async (req, res, next) => {
   try {

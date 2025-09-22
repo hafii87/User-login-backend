@@ -2,7 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const User = require('../models/userModel');
-const Car = require('../models/carModel');
+const Car = require('../models/CarModel');
 const Booking = require('../models/bookingModel');
 
 const connectDB = async () => {
