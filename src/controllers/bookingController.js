@@ -1,7 +1,7 @@
 const emailService = require('../services/emailService');
 const bookingService = require('../services/bookingService');
 const User = require('../models/userModel');
-const Car = require('../models/CarModel');
+const Car = require('../models/carmodel');
 const { AppError } = require('../middleware/errorhandler');
 const agenda = require('../jobs/agenda');
 const { convertToUTC, convertFromUTC, isValidTimezone, formatDateForDisplay } = require('../utils/timezoneUtils');
