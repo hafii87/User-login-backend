@@ -13,6 +13,10 @@ const findById = async (id) => {
   return await User.findById(id);
 };
 
+const findByEmailVerificationToken = async (token) => {
+  return await User.findOne({ emailVerificationToken: token });
+};
+
 const updateById = async (id, updateData) => {
   return await User.findByIdAndUpdate(id, updateData, { new: true });
 };
@@ -87,11 +91,11 @@ const findByPhone = async (phone) => {
   }
 };
 
-
 module.exports = {
   createUser,
   findByEmail,
   findById,
+  findByEmailVerificationToken,
   updateById,
   deleteById,
   getUserWithCars,

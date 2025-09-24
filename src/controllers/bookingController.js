@@ -5,6 +5,7 @@ const Car = require('../models/carModel');
 const { AppError } = require('../middleware/errorhandler');
 const agenda = require('../jobs/agenda');
 const { convertToUTC, convertFromUTC, isValidTimezone, formatDateForDisplay } = require('../utils/timezoneUtils');
+const mongoose = require('mongoose');
 
 const bookCar = async (req, res, next) => {
   try {
@@ -15,6 +16,10 @@ const bookCar = async (req, res, next) => {
     if (!carId) return next(new AppError('carId is required', 400));
     if (!startTime) return next(new AppError('startTime is required', 400));
     if (!endTime) return next(new AppError('endTime is required', 400));
+
+    if (!mongoose.Types.ObjectId.isValid(carId)) {
+      return next(new AppError(`Invalid car ID format: ${carId}`, 400));
+    }
 
     const userTimezone = timezone || req.user?.timezone || 'Asia/Karachi';
     if (!isValidTimezone(userTimezone)) return next(new AppError('Invalid timezone', 400));
@@ -29,13 +34,25 @@ const bookCar = async (req, res, next) => {
       return next(new AppError('Start time must be in the future', 400));
     }
 
+    const car = await Car.findOne({ 
+      _id: carId, 
+      isDeleted: { $ne: true }
+    });
     
-    const allCars = await Car.find({});
-    console.log('DEBUG All cars in DB:', allCars.map(c => ({ _id: c._id, make: c.make, model: c.model })));
-    const car = await Car.findById(carId);
-    console.log('DEBUG Car.findById:', car);
     if (!car) {
-      return next(new AppError(`Booking failed: Car with ID ${carId} not found or has been deleted`, 400));
+      const deletedCar = await Car.findOne({ _id: carId, isDeleted: true });
+      if (deletedCar) {
+        return next(new AppError(`Car with ID ${carId} has been deleted and is no longer available for booking`, 400));
+      }
+      return next(new AppError(`Car with ID ${carId} not found. Please check the car ID and try again.`, 404));
+    }
+
+    if (!car.isAvailable) {
+      return next(new AppError(`Car ${car.make} ${car.model} is currently not available`, 400));
+    }
+    
+    if (!car.isBookable) {
+      return next(new AppError(`Car ${car.make} ${car.model} is not accepting bookings at this time`, 400));
     }
 
     const overlappingBookings = await bookingService.findOverlappingBooking(carId, startTimeUTC, endTimeUTC);
