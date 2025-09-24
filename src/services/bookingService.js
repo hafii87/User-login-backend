@@ -1,17 +1,14 @@
-const agenda = require('../jobs/agenda');
-const mongoose = require('mongoose');
 const bookingWrapper = require('../wrappers/bookingWrapper');
 const carWrapper = require('../wrappers/carWrapper');
 const groupWrapper = require('../wrappers/groupWrapper');
+const userWrapper = require('../wrappers/userWrapper');
+const groupService = require('./groupService');
 
-const findOverlappingBooking = async (carId, startTime, endTime) => {
+
+const findOverlappingBooking = async (carId, startTime, endTime, excludeBookingId = null) => {
   try {
-    const overlapping = await bookingWrapper.findOverlapping(
-      carId,
-      new Date(startTime),
-      new Date(endTime)
-    );
-    return overlapping; 
+    const conflicts = await bookingWrapper.findOverlapping(carId, startTime, endTime, excludeBookingId);
+    return conflicts;
   } catch (err) {
     throw new Error(`Error checking overlapping bookings: ${err.message}`);
   }
@@ -52,10 +49,10 @@ const bookCar = async (bookingData) => {
       }
     }
 
-    const conflicts = await findOverlappingBooking(carId, startTime, endTime);
-    if (conflicts.length > 0) throw new Error('Car already booked for this time slot');
+  const conflicts = await findOverlappingBooking(carId, startTime, endTime);
+  if (conflicts.length > 0) throw new Error('Car already booked for this time slot');
 
-    const booking = await bookingWrapper.createBooking({
+    return await bookingWrapper.createBooking({
       user: userId,
       car: carId,
       startTime: new Date(startTime),
@@ -63,8 +60,6 @@ const bookCar = async (bookingData) => {
       status: 'upcoming',
       bookingTimezone
     });
-
-    return booking;
   } catch (error) {
     throw new Error(`Booking failed: ${error.message}`);
   }
@@ -123,13 +118,11 @@ const extendBooking = async (bookingId, userId, newEndTimeUTC) => {
     if (newDurationDays > (preferences.maxBookingDays || 7))
       throw new Error(`Extended booking cannot exceed ${preferences.maxBookingDays || 7} days`);
 
-    const overlapping = await findOverlappingBooking(carId, currentEnd, newEndTimeUTC);
-    const otherBookings = overlapping.filter(b => b.id.toString() !== booking.id.toString());
-    if (otherBookings.length > 0)
+    const overlapping = await findOverlappingBooking(carId, currentEnd, newEndTimeUTC, booking.id);
+    if (overlapping.length > 0)
       throw new Error('Cannot extend booking - car already booked during extended period');
 
-    const updatedBooking = await bookingWrapper.updateBooking(bookingId, { endTime: newEndTimeUTC });
-    return updatedBooking;
+    return await bookingWrapper.updateBooking(bookingId, { endTime: newEndTimeUTC });
   } catch (err) {
     throw new Error(`Error extending booking: ${err.message}`);
   }
@@ -143,19 +136,16 @@ const getCarBookings = async (carId, status = null) => {
   }
 };
 
-const checkCarAvailability = async (carId, startTime, endTime, excludeBooking = null) => {
+const checkCarAvailability = async (carId, startTime, endTime, excludeBookingId = null) => {
   try {
     const car = await carWrapper.getCarById(carId);
     if (!car) throw new Error('Car not found');
 
-    const overlaps = await findOverlappingBooking(carId, startTime, endTime);
-    const relevantOverlaps = excludeBooking
-      ? overlaps.filter(b => b.id !== excludeBooking.id)
-      : overlaps;
+    const overlaps = await findOverlappingBooking(carId, startTime, endTime, excludeBookingId);
 
     return {
-      isAvailable: relevantOverlaps.length === 0,
-      conflictingBookings: relevantOverlaps
+      isAvailable: overlaps.length === 0,
+      conflictingBookings: overlaps
     };
   } catch (err) {
     throw new Error(`Error checking car availability: ${err.message}`);
@@ -181,10 +171,7 @@ const bookGroupCar = async (bookingData) => {
     });
     if (!carInGroup) throw new Error('Car is not available in this group');
 
-    const userWrapper = require('../wrappers/userWrapper');
     const user = await userWrapper.findById(userId);
-
-    const groupService = require('./groupService');
     const eligibilityCheck = await groupService.checkUserEligibility(user, group.rules);
     if (!eligibilityCheck.eligible)
       throw new Error(`You don't meet group requirements: ${eligibilityCheck.reasons.join(', ')}`);
@@ -197,7 +184,10 @@ const bookGroupCar = async (bookingData) => {
     if (advanceDays > group.preferences.advanceBookingLimit)
       throw new Error(`Cannot book more than ${group.preferences.advanceBookingLimit} days in advance`);
 
-    const booking = await bookingWrapper.createBooking({
+    const conflicts = await findOverlappingBooking(carId, startTime, endTime);
+    if (conflicts.length > 0) throw new Error('Car already booked for this time slot (group)');
+
+    return await bookingWrapper.createBooking({
       user: userId,
       car: carId,
       group: groupId,
@@ -206,14 +196,13 @@ const bookGroupCar = async (bookingData) => {
       status: group.preferences.autoApproveBookings ? 'upcoming' : 'pending',
       bookingTimezone
     });
-
-    return booking;
   } catch (error) {
     throw new Error(`Group booking failed: ${error.message}`);
   }
 };
 
 module.exports = {
+  findOverlappingBooking,
   bookCar,
   getUserBookings,
   getBookingById,
@@ -221,4 +210,5 @@ module.exports = {
   extendBooking,
   getCarBookings,
   checkCarAvailability,
-}
+  bookGroupCar
+};

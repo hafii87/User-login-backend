@@ -1,4 +1,4 @@
-const Car = require('../models/carmodel'); 
+const Car = require('../models/carModel'); 
 const Booking = require('../models/bookingModel'); 
 const mongoose = require('mongoose');
 
@@ -14,15 +14,18 @@ const createBooking = async (data) => {
   }
 };
 
-const findOverlapping = async (carId, startTime, endTime) => {
+const findOverlapping = async (carId, startTime, endTime, excludeBookingId = null) => {
   try {
-    return await Booking.find({
+    const query = {
       car: carId,
       status: { $in: ['upcoming', 'ongoing'] },
       startTime: { $lt: endTime },
-      endTime: { $gt: startTime },
-      isStarted: false
-    });
+      endTime: { $gt: startTime }
+    };
+    if (excludeBookingId) {
+      query._id = { $ne: mongoose.Types.ObjectId(excludeBookingId) };
+    }
+    return await Booking.find(query);
   } catch (error) {
     throw new Error(`Error checking overlapping bookings: ${error.message}`);
   }

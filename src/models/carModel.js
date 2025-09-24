@@ -9,7 +9,8 @@ const carSchema = new mongoose.Schema({
     location: String,
     price: { type: Number, required: true },
     licenseNumber: { type: String, required: true, unique: true },
-
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+    isDeleted: { type: Boolean, default: false },
     bookingPreferences: {                           
         minBookingHours: { type: Number, default: 1 },
         maxBookingDays: { type: Number, default: 7 },
@@ -25,6 +26,6 @@ const carSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
-const Car = mongoose.models.Car || mongoose.model('Car', carSchema);
+const Car = mongoose.models.Car || mongoose.model('Car', carSchema, 'cars');
 
 module.exports = Car;

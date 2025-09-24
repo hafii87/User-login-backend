@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const User = require('./src/models/UserModel');
+const User = require('./src/models/userModel');
 
 const promoteToAdmin = async () => {
   try {
@@ -28,7 +28,7 @@ const promoteToAdmin = async () => {
       console.log(' User not found. Make sure you created a user with email: admin@test.com');
       
       const allUsers = await User.find({}).select('email username role');
-      console.log('📋 Existing users:');
+      console.log('Existing users:');
       allUsers.forEach(user => {
         console.log(`- ${user.email} (${user.username}) - Role: ${user.role || 'user'}`);
       });
@@ -38,14 +38,14 @@ const promoteToAdmin = async () => {
     console.error(' Error:', error.message);
     
     if (error.name === 'MongoServerSelectionError') {
-      console.log('\n💡 Possible solutions:');
+      console.log('\n Possible solutions:');
       console.log('1. Check your MongoDB Atlas IP whitelist');
       console.log('2. Verify your internet connection');
       console.log('3. Check if your cluster is paused');
     }
   } finally {
     await mongoose.connection.close();
-    console.log('🔌 Database connection closed');
+    console.log(' Database connection closed');
   }
 };
 

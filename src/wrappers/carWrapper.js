@@ -1,10 +1,15 @@
-const Car = require('../models/carmodel'); 
+const Car = require('../models/carModel'); 
 const Booking = require('../models/bookingModel'); 
 const mongoose = require('mongoose');
 
 const createCar = async (carData) => {
   try {
-    const newCar = new Car(carData);
+    const newCar = new Car({
+      ...carData,
+      isDeleted: false,   
+      deletedAt: null,
+      deletedBy: null
+    });
     return await newCar.save();
   } catch (error) {
     throw new Error(`Error creating car: ${error.message}`);
@@ -21,21 +26,18 @@ const getCarsWithOwners = async () => {
 
 const getCarById = async (id) => {
   try {
-    console.log('CarWrapper - Searching for car ID:', id); 
-    
+    console.log('CarWrapper - Searching for car ID:', id);
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      console.log('CarWrapper - Invalid ObjectId format:', id); 
       throw new Error(`Invalid car ID format: ${id}`);
     }
 
-    const car = await Car.findOne({ _id: id, isDeleted: false }).populate('owner', 'username email');
-    
-    console.log('CarWrapper - Car found:', car ? `${car.make} ${car.model}` : 'null'); 
-    
+    const car = await Car.findOne({ _id: id, isDeleted: false })
+      .populate('owner', 'username email');
+
+    console.log('CarWrapper - Car found:', car ? `${car.make} ${car.model}` : 'null');
     if (!car) {
       throw new Error(`Car with ID ${id} not found or has been deleted`);
     }
-    
     return car;
   } catch (error) {
     console.error('CarWrapper - Error:', error.message);
@@ -102,7 +104,6 @@ const toggleCarBooking = async (carId, userId, updateData) => {
   }
 };
 
-
 module.exports = {
   createCar, 
   getCarsWithOwners,
@@ -112,4 +113,4 @@ module.exports = {
   deleteCarByOwner, 
   getOngoingBookings,
   toggleCarBooking
-}
+};

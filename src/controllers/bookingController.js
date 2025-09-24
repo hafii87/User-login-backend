@@ -1,7 +1,7 @@
 const emailService = require('../services/emailService');
 const bookingService = require('../services/bookingService');
 const User = require('../models/userModel');
-const Car = require('../models/carmodel');
+const Car = require('../models/carModel'); 
 const { AppError } = require('../middleware/errorhandler');
 const agenda = require('../jobs/agenda');
 const { convertToUTC, convertFromUTC, isValidTimezone, formatDateForDisplay } = require('../utils/timezoneUtils');
@@ -29,13 +29,19 @@ const bookCar = async (req, res, next) => {
       return next(new AppError('Start time must be in the future', 400));
     }
 
+    
+    const allCars = await Car.find({});
+    console.log('DEBUG All cars in DB:', allCars.map(c => ({ _id: c._id, make: c.make, model: c.model })));
     const car = await Car.findById(carId);
+    console.log('DEBUG Car.findById:', car);
     if (!car) {
       return next(new AppError(`Booking failed: Car with ID ${carId} not found or has been deleted`, 400));
     }
 
-    const overlappingBooking = await bookingService.findOverlappingBooking(carId, startTimeUTC, endTimeUTC);
-    if (overlappingBooking) return next(new AppError('This car is already booked during the selected time', 400));
+    const overlappingBookings = await bookingService.findOverlappingBooking(carId, startTimeUTC, endTimeUTC);
+    if (overlappingBookings.length > 0) {
+      return next(new AppError('This car is already booked during the selected time', 400));
+    }
 
     const booking = await bookingService.bookCar({
       user: userId,
