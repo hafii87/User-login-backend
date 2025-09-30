@@ -1,7 +1,8 @@
 const emailService = require('../services/emailService');
 const bookingService = require('../services/bookingService');
 const User = require('../models/userModel');
-const Car = require('../models/carModel'); 
+const Car = require('../models/carModel');
+const Booking = require('../models/bookingModel');
 const { AppError } = require('../middleware/errorhandler');
 const agenda = require('../jobs/agenda');
 const { convertToUTC, convertFromUTC, isValidTimezone, formatDateForDisplay } = require('../utils/timezoneUtils');
@@ -16,10 +17,7 @@ const bookCar = async (req, res, next) => {
     if (!carId) return next(new AppError('carId is required', 400));
     if (!startTime) return next(new AppError('startTime is required', 400));
     if (!endTime) return next(new AppError('endTime is required', 400));
-
-    if (!mongoose.Types.ObjectId.isValid(carId)) {
-      return next(new AppError(`Invalid car ID format: ${carId}`, 400));
-    }
+    if (!mongoose.Types.ObjectId.isValid(carId)) return next(new AppError(`Invalid car ID format: ${carId}`, 400));
 
     const userTimezone = timezone || req.user?.timezone || 'Asia/Karachi';
     if (!isValidTimezone(userTimezone)) return next(new AppError('Invalid timezone', 400));
@@ -27,48 +25,36 @@ const bookCar = async (req, res, next) => {
     const startTimeUTC = convertToUTC(startTime, userTimezone);
     const endTimeUTC = convertToUTC(endTime, userTimezone);
 
-    if (new Date(startTimeUTC) >= new Date(endTimeUTC)) {
-      return next(new AppError('End time must be after start time', 400));
-    }
-    if (new Date(startTimeUTC) < new Date()) {
-      return next(new AppError('Start time must be in the future', 400));
-    }
+    if (new Date(startTimeUTC) >= new Date(endTimeUTC)) return next(new AppError('End time must be after start time', 400));
+    if (new Date(startTimeUTC) < new Date()) return next(new AppError('Start time must be in the future', 400));
 
-    const car = await Car.findOne({ 
-      _id: carId, 
-      isDeleted: { $ne: true }
+  const car = await Car.findOne({ _id: carId, isDeleted: { $ne: true } }).populate('owner', 'username email');
+    if (!car) return next(new AppError(`Car with ID ${carId} not found or has been deleted`, 400));
+
+    if (!car.isAvailable) return next(new AppError(`Car ${car.make} ${car.model} is currently not available`, 400));
+    if (!car.isBookable) return next(new AppError(`Car ${car.make} ${car.model} is not accepting bookings at this time`, 400));
+
+    const overlappingBookings = await Booking.find({
+      car: carId,
+      status: { $in: ['upcoming', 'ongoing'] },
+      startTime: { $lt: endTimeUTC },
+      endTime: { $gt: startTimeUTC }
     });
-    
-    if (!car) {
-      const deletedCar = await Car.findOne({ _id: carId, isDeleted: true });
-      if (deletedCar) {
-        return next(new AppError(`Car with ID ${carId} has been deleted and is no longer available for booking`, 400));
-      }
-      return next(new AppError(`Car with ID ${carId} not found. Please check the car ID and try again.`, 404));
-    }
+    if (overlappingBookings.length > 0) return next(new AppError('This car is already booked during the selected time', 400));
 
-    if (!car.isAvailable) {
-      return next(new AppError(`Car ${car.make} ${car.model} is currently not available`, 400));
-    }
-    
-    if (!car.isBookable) {
-      return next(new AppError(`Car ${car.make} ${car.model} is not accepting bookings at this time`, 400));
-    }
-
-    const overlappingBookings = await bookingService.findOverlappingBooking(carId, startTimeUTC, endTimeUTC);
-    if (overlappingBookings.length > 0) {
-      return next(new AppError('This car is already booked during the selected time', 400));
-    }
-
-    const booking = await bookingService.bookCar({
+    const booking = await Booking.create({
       user: userId,
       car: carId,
       startTime: startTimeUTC,
       endTime: endTimeUTC,
-      isStarted: false,
-      bookingTimezone: userTimezone,
-      status: "upcoming",
+      status: 'upcoming',
+      bookingTimezone: userTimezone
     });
+
+    await booking.populate([
+      { path: 'car', select: 'make model year price owner licenseNumber' },
+      { path: 'user', select: 'username email' }
+    ]);
 
     await agenda.schedule(new Date(startTimeUTC), "start booking", { bookingId: booking.id, carId });
     await agenda.schedule(new Date(endTimeUTC), "end booking", { bookingId: booking.id, carId });
@@ -80,11 +66,11 @@ const bookCar = async (req, res, next) => {
       startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
       endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone),
       car: {
-        id: car._id,
+  id: car._id,
         make: car.make,
         model: car.model,
         year: car.year,
-        licenseNumber: car.licenseNumber,
+        licenseNumber: car.licenseNumber
       }
     };
 
@@ -97,7 +83,6 @@ const bookCar = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Controller Error:', error);
     next(new AppError(error.message || 'Failed to create booking', 400));
   }
 };
@@ -155,40 +140,26 @@ const cancelBooking = async (req, res, next) => {
   try {
     const bookingId = req.params.id;
     const userId = req.user?.id;
-
-    if (!bookingId || !bookingId.match(/^[0-9a-fA-F]{24}$/)) {
-      return next(new AppError('Invalid booking ID', 400));
-    }
+    if (!bookingId || !bookingId.match(/^[0-9a-fA-F]{24}$/)) return next(new AppError('Invalid booking ID', 400));
 
     const booking = await bookingService.getBookingById(bookingId);
     if (!booking) return next(new AppError('Booking not found', 404));
+    if (!['upcoming'].includes(booking.status)) return next(new AppError(`Booking cannot be cancelled. Current status: ${booking.status}`, 400));
 
-    if (!['upcoming'].includes(booking.status)) {
-      return next(new AppError(`Booking cannot be cancelled. Current status: ${booking.status}`, 400));
-    }
-
-    const bookingUserId = booking.user._id?.toString() || booking.user.toString();
+  const bookingUserId = booking.user._id?.toString() || booking.user.toString();
     if (bookingUserId !== userId) return next(new AppError('You can only cancel your own bookings', 403));
 
     booking.status = 'cancelled';
     const updatedBooking = await booking.save();
 
     await agenda.cancel({ $or: [{ "data.bookingId": bookingId }, { "data.bookingId": bookingId.toString() }] });
-    if (booking.car) {
-      const carId = booking.car._id || booking.car;
-      await Car.findByIdAndUpdate(carId, { isAvailable: true });
-    }
+  if (booking.car) await Car.findByIdAndUpdate(booking.car._id || booking.car, { isAvailable: true });
 
     await emailService.sendCancellationEmail(req.user.email, updatedBooking);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Booking cancelled successfully. Confirmation email sent!',
-      data: updatedBooking
-    });
+    res.status(200).json({ success: true, message: 'Booking cancelled successfully. Confirmation email sent!', data: updatedBooking });
   } catch (error) {
-    console.error('Cancel booking error:', error);
-    return next(new AppError(error.message || 'Failed to cancel booking', 500));
+    next(new AppError(error.message || 'Failed to cancel booking', 500));
   }
 };
 
@@ -196,7 +167,6 @@ const extendBooking = async (req, res, next) => {
   try {
     const bookingId = req.params.id;
     const { newEndTime } = req.body;
-
     if (!bookingId || !newEndTime) return next(new AppError('Booking ID and new end time are required', 400));
 
     const booking = await bookingService.getBookingById(bookingId);
@@ -204,30 +174,26 @@ const extendBooking = async (req, res, next) => {
 
     const userTimezone = booking.bookingTimezone || 'Asia/Karachi';
     const newEndTimeUTC = convertToUTC(newEndTime, userTimezone);
+    if (new Date(newEndTimeUTC) <= new Date(booking.endTime)) return next(new AppError('New end time must be later than current booking end time', 400));
 
-    if (new Date(newEndTimeUTC) <= new Date(booking.startTime) || new Date(newEndTimeUTC) <= new Date(booking.endTime)) {
-      return next(new AppError('New end time must be later than current booking end time', 400));
-    }
-
-    const bookingUserId = booking.user._id?.toString() || booking.user.toString();
+  const bookingUserId = booking.user._id?.toString() || booking.user.toString();
     if (bookingUserId !== req.user.id) return next(new AppError('Unauthorized to extend this booking', 403));
 
     const updatedBooking = await bookingService.extendBooking(bookingId, req.user.id, newEndTimeUTC);
+
     await agenda.cancel({ "data.bookingId": bookingId, name: "end booking" });
-    const carId = booking.car._id || booking.car;
-    await agenda.schedule(new Date(newEndTimeUTC), "end booking", { bookingId, carId });
+  await agenda.schedule(new Date(newEndTimeUTC), "end booking", { bookingId, carId: booking.car._id || booking.car });
 
     const responseBooking = {
       ...updatedBooking.toObject(),
       startTimeLocal: convertFromUTC(updatedBooking.startTime, userTimezone),
       endTimeLocal: convertFromUTC(updatedBooking.endTime, userTimezone),
       startTimeFormatted: formatDateForDisplay(updatedBooking.startTime, userTimezone),
-      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone),
+      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone)
     };
 
     res.status(200).json({ success: true, message: 'Booking extended successfully', data: responseBooking });
   } catch (error) {
-    console.error('Extend booking error:', error);
     next(new AppError(error.message || 'Failed to extend booking', 400));
   }
 };
@@ -257,23 +223,15 @@ const bookGroupCar = async (req, res, next) => {
   try {
     const userId = req.user?.id;
     const { carId, groupId, startTime, endTime, timezone } = req.body;
-
-    if (!userId || !carId || !groupId || !startTime || !endTime) {
-      return next(new AppError('All fields are required for group booking', 400));
-    }
+    if (!userId || !carId || !groupId || !startTime || !endTime) return next(new AppError('All fields are required for group booking', 400));
 
     const userTimezone = timezone || req.user?.timezone || 'Asia/Karachi';
     if (!isValidTimezone(userTimezone)) return next(new AppError('Invalid timezone', 400));
 
     const startTimeUTC = convertToUTC(startTime, userTimezone);
     const endTimeUTC = convertToUTC(endTime, userTimezone);
-
-    if (new Date(startTimeUTC) >= new Date(endTimeUTC)) {
-      return next(new AppError('End time must be after start time', 400));
-    }
-    if (new Date(startTimeUTC) < new Date()) {
-      return next(new AppError('Start time must be in the future', 400));
-    }
+    if (new Date(startTimeUTC) >= new Date(endTimeUTC)) return next(new AppError('End time must be after start time', 400));
+    if (new Date(startTimeUTC) < new Date()) return next(new AppError('Start time must be in the future', 400));
 
     const booking = await bookingService.bookGroupCar({
       user: userId,
@@ -281,7 +239,7 @@ const bookGroupCar = async (req, res, next) => {
       group: groupId,
       startTime: startTimeUTC,
       endTime: endTimeUTC,
-      bookingTimezone: userTimezone,
+      bookingTimezone: userTimezone
     });
 
     await agenda.schedule(new Date(startTimeUTC), "start booking", { bookingId: booking.id, carId });
@@ -297,7 +255,6 @@ const bookGroupCar = async (req, res, next) => {
 
     res.status(201).json({ success: true, message: 'Group car booking created successfully', data: responseBooking });
   } catch (error) {
-    console.error('Group Booking Controller Error:', error); 
     next(new AppError(error.message || 'Failed to create group booking', 400));
   }
 };

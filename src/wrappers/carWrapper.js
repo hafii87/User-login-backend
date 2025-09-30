@@ -6,6 +6,8 @@ const createCar = async (carData) => {
   try {
     const newCar = new Car({
       ...carData,
+      isAvailable: typeof carData.isAvailable === 'boolean' ? carData.isAvailable : true,
+      isBookable: typeof carData.isBookable === 'boolean' ? carData.isBookable : true,
       isDeleted: false,   
       deletedAt: null,
       deletedBy: null
@@ -31,7 +33,7 @@ const getCarById = async (id) => {
       throw new Error(`Invalid car ID format: ${id}`);
     }
 
-    const car = await Car.findOne({ _id: id, isDeleted: false })
+  const car = await Car.findOne({ _id: id, isDeleted: false })
       .populate('owner', 'username email');
 
     console.log('CarWrapper - Car found:', car ? `${car.make} ${car.model}` : 'null');

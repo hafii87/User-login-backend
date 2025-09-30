@@ -15,25 +15,25 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     const user = await User.findById(decoded.id).select('-password');
-    
+
     if (!user) {
       return next(new AppError('User not found', 404));
     }
-    
+
     req.user = {
       id: user.id.toString(),
       username: user.username,
-      email: user.email,          
-      role: user.role || 'user', 
+      email: user.email,
+      role: user.role || 'user',
       timezone: user.timezone
     };
-    
+
     next();
   } catch (error) {
     return next(new AppError('Invalid or expired token', 401));
   }
-}
+};
 
-module.exports = verifyToken;
+module.exports = { verifyToken };   

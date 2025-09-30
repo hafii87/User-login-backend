@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const createBooking = async (data) => {
   try {
     const booking = await Booking.create(data); 
-    return await Booking.findById(booking._id)
+  return await Booking.findById(booking._id)
       .populate('car', 'make model year price owner licenseNumber')
       .populate('user', 'username email')
       .populate('group', 'name description');
@@ -23,7 +23,7 @@ const findOverlapping = async (carId, startTime, endTime, excludeBookingId = nul
       endTime: { $gt: startTime }
     };
     if (excludeBookingId) {
-      query._id = { $ne: mongoose.Types.ObjectId(excludeBookingId) };
+      query.id = { $ne: mongoose.Types.ObjectId(excludeBookingId) };
     }
     return await Booking.find(query);
   } catch (error) {
@@ -120,7 +120,7 @@ const updateBooking = async (bookingId, updateData) => {
 const createBookingWithSession = async (data, session) => {
   try {
     const [booking] = await Booking.create([data], { session });
-    return await Booking.findById(booking._id)
+  return await Booking.findById(booking._id)
       .populate('car', 'make model year price owner licenseNumber')
       .populate('user', 'username email')
       .populate('group', 'name description')
