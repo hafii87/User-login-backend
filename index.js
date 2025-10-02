@@ -5,7 +5,7 @@ const connectDB = require('./config/db');
 require('./src/jobs/agenda');
 
 const { errorHandler } = require('./src/middleware/errorhandler');
-const authenticate = require('./src/middleware/verifyToken');
+const { verifyToken } = require('./src/middleware/verifyToken');
 
 const userRoutes = require('./src/routes/userRoutes');
 const carRoutes = require('./src/routes/carRoutes');
@@ -39,7 +39,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/test-auth', authenticate, (req, res) => {
+app.get('/test-auth', verifyToken, (req, res) => {
   res.json({ message: 'Auth passed', user: req.user });
 });
 

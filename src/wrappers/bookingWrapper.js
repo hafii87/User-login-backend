@@ -4,11 +4,11 @@ const mongoose = require('mongoose');
 
 const createBooking = async (data) => {
   try {
+    console.log('[createBooking] booking data:', data);
     const booking = await Booking.create(data); 
-  return await Booking.findById(booking._id)
-      .populate('car', 'make model year price owner licenseNumber')
-      .populate('user', 'username email')
-      .populate('group', 'name description');
+    return await Booking.findById(booking._id)
+      .populate('car', 'make model year pricePerHour owner licenseNumber')
+      .populate('user', 'username email');
   } catch (error) {
     throw new Error(`Error creating booking: ${error.message}`);
   }
@@ -23,7 +23,7 @@ const findOverlapping = async (carId, startTime, endTime, excludeBookingId = nul
       endTime: { $gt: startTime }
     };
     if (excludeBookingId) {
-      query.id = { $ne: mongoose.Types.ObjectId(excludeBookingId) };
+      query._id = { $ne: mongoose.Types.ObjectId(excludeBookingId) };
     }
     return await Booking.find(query);
   } catch (error) {
@@ -34,9 +34,8 @@ const findOverlapping = async (carId, startTime, endTime, excludeBookingId = nul
 const getUserBookings = async (userId) => {
   try {
     return await Booking.find({ user: userId })
-      .populate('car', 'make model year price owner licenseNumber')
+      .populate('car', 'make model year pricePerHour owner licenseNumber')
       .populate('user', 'username email')
-      .populate('group', 'name description')
       .sort({ createdAt: -1 });
   } catch (error) {
     throw new Error(`Error fetching user bookings: ${error.message}`);
@@ -46,9 +45,8 @@ const getUserBookings = async (userId) => {
 const getBookingById = async (bookingId) => {
   try {
     return await Booking.findById(bookingId)
-      .populate('car', 'make model year price owner licenseNumber')
-      .populate('user', 'username email')
-      .populate('group', 'name description');
+      .populate('car', 'make model year pricePerHour owner licenseNumber')
+      .populate('user', 'username email');
   } catch (error) {
     throw new Error(`Error fetching booking by ID: ${error.message}`);
   }
@@ -61,9 +59,8 @@ const cancelBooking = async (bookingId) => {
       { status: 'cancelled' },
       { new: true }
     )
-      .populate('car', 'make model year price licenseNumber')
-      .populate('user', 'username email')
-      .populate('group', 'name description');
+      .populate('car', 'make model year pricePerHour licenseNumber')
+      .populate('user', 'username email');
   } catch (error) {
     throw new Error(`Error cancelling booking: ${error.message}`);
   }
@@ -75,9 +72,8 @@ const getCarBookings = async (carId, status = null) => {
     if (status) query.status = status;
 
     return await Booking.find(query)
-      .populate('car', 'make model year price owner licenseNumber')
+      .populate('car', 'make model year pricePerHour owner licenseNumber')
       .populate('user', 'username email')
-      .populate('group', 'name description')
       .sort({ startTime: 1 });
   } catch (error) {
     throw new Error(`Error fetching car bookings: ${error.message}`);
@@ -96,9 +92,8 @@ const updateBooking = async (bookingId, updateData) => {
       updateData, 
       options
     )
-      .populate('car', 'make model year price owner licenseNumber')
-      .populate('user', 'username email')
-      .populate('group', 'name description');
+      .populate('car', 'make model year pricePerHour owner licenseNumber')
+      .populate('user', 'username email');
     
     if (!booking) throw new Error('Booking not found');
     
@@ -120,10 +115,9 @@ const updateBooking = async (bookingId, updateData) => {
 const createBookingWithSession = async (data, session) => {
   try {
     const [booking] = await Booking.create([data], { session });
-  return await Booking.findById(booking._id)
-      .populate('car', 'make model year price owner licenseNumber')
+    return await Booking.findById(booking._id)
+      .populate('car', 'make model year pricePerHour owner licenseNumber')
       .populate('user', 'username email')
-      .populate('group', 'name description')
       .session(session);
   } catch (error) {
     throw new Error(`Error creating booking: ${error.message}`);

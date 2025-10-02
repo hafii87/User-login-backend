@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const verifyToken = require('../middleware/verifyToken'); 
+const { verifyToken } = require('../middleware/verifyToken');
 const { validateCar } = require('../validators/carValidators');
 
 const {

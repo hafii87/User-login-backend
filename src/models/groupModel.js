@@ -68,6 +68,22 @@ const groupSchema = new mongoose.Schema({
       default: 'moderate'
     }
   },
+  companyCommissionPercentage: {
+      type: Number,
+    default: 10,
+      min: 0,
+      max: 100
+    },
+    groupOwnerCommissionPercentage: {
+      type: Number,
+      default: 15,
+      min: 0,
+      max: 100
+    },
+    pricePerHour: {
+      type: Number,
+      default: 10
+},
   rules: {
     emailVerified: {
       type: Boolean,

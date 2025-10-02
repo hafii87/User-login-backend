@@ -1,10 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const stripeController = require('../controllers/stripeController');
 const { verifyToken } = require('../middleware/verifyToken');
 
-router.post('/create-payment-intent', verifyToken, stripeController.createPaymentIntent);
-router.post('/confirm-payment', verifyToken, stripeController.confirmPayment);
-router.get('/payment-history', verifyToken, stripeController.getPaymentHistory);
+const {
+  createPaymentIntent,
+  confirmPayment,
+  getPaymentHistory
+} = require('../controllers/stripeController');
+
+router.post('/create-payment-intent', verifyToken, createPaymentIntent);
+router.post('/confirm-payment', verifyToken, confirmPayment);
+router.get('/payment-history', verifyToken, getPaymentHistory);
 
 module.exports = router;

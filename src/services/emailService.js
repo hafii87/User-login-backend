@@ -46,7 +46,7 @@ const sendBookingConfirmation = async (userEmail, bookingData) => {
     const isGroupBooking = bookingData.group && bookingData.group.name;
     const groupInfo = isGroupBooking ? 
       `<p><strong> Group:</strong> ${bookingData.group.name}</p>` : 
-      `<p><strong> Booking Type:</strong> Individual</p>`;
+      `<p><strong> Booking Type:</strong> ${bookingData.bookingType.charAt(0).toUpperCase() + bookingData.bookingType.slice(1)}</p>`;
     
     const mailOptions = {
       from: process.env.EMAIL_FROM,
