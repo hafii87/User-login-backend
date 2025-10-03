@@ -13,6 +13,7 @@ const bookingRoutes = require('./src/routes/bookingRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const groupRoutes = require('./src/routes/groupRoutes');
 const stripeRoutes = require('./src/routes/stripeRoutes');
+const webhookRoutes = require('./src/routes/webhookRoutes');
 
 const emailService = require('./src/services/emailService');
 
@@ -49,6 +50,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/stripe', stripeRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 app.get('/', (req, res) => {
   res.send('🚀 User Login & Car API is running on Railway!');

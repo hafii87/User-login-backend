@@ -2,82 +2,187 @@ const stripe = require('../../config/stripe');
 const StripePayment = require('../models/stripeModel');
 const Booking = require('../models/bookingModel');
 
-const createPaymentIntent = async (bookingId, userId) => {
+
+const createPaymentIntent = async (paymentData) => {
   try {
-    const booking = await Booking.findById(bookingId)
-      .populate('user')
-      .populate('car')
-      .populate('group');
+    const { bookingId, userId, amount, carDetails } = paymentData;
 
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
+    console.log('[Stripe] Creating payment intent:', { bookingId, userId, amount });
 
-    if (!booking.user || !booking.user._id) {
-      throw new Error('Booking user is missing or not populated');
-    }
-    if (booking.user._id.toString() !== userId.toString()) {
-      throw new Error('Unauthorized');
-    }
+    const amountInCents = Math.round(amount * 100);
 
-    if (booking.bookingType === 'business') {
-      throw new Error('Business bookings do not require payment');
+    if (amountInCents <= 0) {
+      throw new Error('Invalid payment amount');
     }
-
-    const totalAmount = booking.totalAmount;
-    if (!totalAmount || totalAmount <= 0) {
-      throw new Error('Invalid booking amount');
-    }
-
-    const amount = Math.round(totalAmount * 100);
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,
+      amount: amountInCents,
       currency: 'usd',
       metadata: {
-        bookingId: bookingId?.toString() || '',
-        userId: userId?.toString() || '',
-        bookingType: booking.bookingType || '',
-        companyCut: booking.companyCut ? booking.companyCut.toString() : '0',
-        groupOwnerCut: booking.groupOwnerCut ? booking.groupOwnerCut.toString() : '0',
-        carOwnerAmount: booking.carOwnerAmount ? booking.carOwnerAmount.toString() : '0'
+        bookingId: bookingId,
+        userId: userId,
+        carMake: carDetails.make || '',
+        carModel: carDetails.model || '',
+        carYear: carDetails.year ? carDetails.year.toString() : ''
       },
-      description: booking.car
-        ? `Private booking: ${booking.car.make || ''} ${booking.car.model || ''}`
-        : `Private booking`
+      description: `Car Booking: ${carDetails.make} ${carDetails.model} ${carDetails.year}`,
+      automatic_payment_methods: {
+        enabled: true,
+      },
     });
+
+    console.log('[Stripe] PaymentIntent created:', paymentIntent.id);
 
     const payment = new StripePayment({
       stripePaymentIntentId: paymentIntent.id,
       bookingId,
       userId,
-      amount: totalAmount,
+      amount: amount,
       currency: 'usd',
-      status: 'pending',
-      customerEmail: booking.user.email || '',
-      customerName: booking.user.username || ''
+      status: 'pending'
     });
 
     await payment.save();
-    booking.stripePaymentId = payment._id;
-    await booking.save();
 
     return {
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      amount: totalAmount
+      id: paymentIntent.id,
+      client_secret: paymentIntent.client_secret,
+      amount: amount
     };
   } catch (error) {
-    console.error('Stripe createPaymentIntent error:', error.message);
+    console.error('[Stripe] Error:', error.message);
+    throw new Error(`Stripe payment creation failed: ${error.message}`);
+  }
+};
+
+const cancelPaymentIntent = async (paymentIntentId) => {
+  try {
+    const paymentIntent = await stripe.paymentIntents.cancel(paymentIntentId);
+    console.log('[Stripe] PaymentIntent cancelled:', paymentIntentId);
+
+    await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntentId },
+      { status: 'failed' }
+    );
+
+    return paymentIntent;
+  } catch (error) {
+    console.error('[Stripe] Error cancelling:', error.message);
+    throw new Error(`Failed to cancel payment: ${error.message}`);
+  }
+};
+
+const handleWebhookEvent = async (event) => {
+  try {
+    console.log('[Stripe Webhook] Event type:', event.type);
+
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        await handlePaymentSuccess(event.data.object);
+        break;
+
+      case 'payment_intent.payment_failed':
+        await handlePaymentFailure(event.data.object);
+        break;
+
+      case 'payment_intent.canceled':
+        await handlePaymentCancellation(event.data.object);
+        break;
+
+      default:
+        console.log('[Stripe Webhook] Unhandled event:', event.type);
+    }
+  } catch (error) {
+    console.error('[Stripe Webhook] Error:', error.message);
     throw error;
   }
 };
 
+const handlePaymentSuccess = async (paymentIntent) => {
+  try {
+    const bookingId = paymentIntent.metadata.bookingId;
+    
+    console.log('[Stripe] Payment succeeded for booking:', bookingId);
+
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        paymentStatus: 'paid',
+        status: 'confirmed',
+        paidAt: new Date()
+      },
+      { new: true }
+    );
+
+    await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntent.id },
+      {
+        status: 'succeeded',
+        paidAt: new Date()
+      }
+    );
+
+    console.log('[Stripe] Booking confirmed:', bookingId);
+    return booking;
+  } catch (error) {
+    console.error('[Stripe] Error handling success:', error.message);
+    throw error;
+  }
+};
+
+const handlePaymentFailure = async (paymentIntent) => {
+  try {
+    const bookingId = paymentIntent.metadata.bookingId;
+    
+    console.log('[Stripe] Payment failed for booking:', bookingId);
+
+    await Booking.findByIdAndUpdate(bookingId, {
+      paymentStatus: 'failed',
+      status: 'cancelled'
+    });
+
+    await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntent.id },
+      {
+        status: 'failed',
+        errorMessage: paymentIntent.last_payment_error?.message || 'Payment failed'
+      }
+    );
+
+    console.log('[Stripe] Booking cancelled due to payment failure');
+  } catch (error) {
+    console.error('[Stripe] Error handling failure:', error.message);
+    throw error;
+  }
+};
+
+const handlePaymentCancellation = async (paymentIntent) => {
+  try {
+    const bookingId = paymentIntent.metadata.bookingId;
+    
+    console.log('[Stripe] Payment cancelled for booking:', bookingId);
+
+    await Booking.findByIdAndUpdate(bookingId, {
+      paymentStatus: 'cancelled',
+      status: 'cancelled'
+    });
+
+    await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntent.id },
+      { status: 'failed' }
+    );
+
+    console.log('[Stripe] Booking cancelled');
+  } catch (error) {
+    console.error('[Stripe] Error handling cancellation:', error.message);
+    throw error;
+  }
+};
 
 const confirmPayment = async (paymentIntentId) => {
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
+    
     const payment = await StripePayment.findOne({
       stripePaymentIntentId: paymentIntentId
     });
@@ -89,20 +194,12 @@ const confirmPayment = async (paymentIntentId) => {
     if (paymentIntent.status === 'succeeded') {
       payment.status = 'succeeded';
       payment.paidAt = new Date();
-
-      if (paymentIntent.charges?.data[0]?.payment_method_details?.card) {
-        const card = paymentIntent.charges.data[0].payment_method_details.card;
-        payment.paymentMethod = {
-          last4: card.last4,
-          brand: card.brand
-        };
-      }
-
       await payment.save();
 
       await Booking.findByIdAndUpdate(payment.bookingId, {
         status: 'confirmed',
-        paymentStatus: 'paid'
+        paymentStatus: 'paid',
+        paidAt: new Date()
       });
     }
 
@@ -126,6 +223,8 @@ const getUserPayments = async (userId) => {
 
 module.exports = {
   createPaymentIntent,
+  cancelPaymentIntent,
+  handleWebhookEvent,
   confirmPayment,
   getUserPayments
 };

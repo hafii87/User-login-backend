@@ -164,10 +164,168 @@ const sendEmailVerification = async (userEmail, userData) => {
   }
 };
 
+const sendBusinessBookingConfirmation = async (email, bookingData) => {
+  const emailContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        .business-badge { background: #1e40af; color: white; padding: 4px 12px; border-radius: 4px; }
+        .booking-details { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <h2>Business Booking Confirmed</h2>
+      <span class="business-badge">BUSINESS ACCOUNT</span>
+      
+      <div class="booking-details">
+        <h3>Booking Details</h3>
+        <p><strong>Booking ID:</strong> ${bookingData._id}</p>
+        <p><strong>Vehicle:</strong> ${bookingData.car.make} ${bookingData.car.model}</p>
+        <p><strong>License Number:</strong> ${bookingData.car.licenseNumber}</p>
+        <p><strong>Start:</strong> ${bookingData.startTimeFormatted}</p>
+        <p><strong>End:</strong> ${bookingData.endTimeFormatted}</p>
+      </div>
+      
+      <p><strong>Payment:</strong> No payment required - Business account</p>
+      <p><strong>Invoice:</strong> Monthly invoice will be sent at end of billing cycle</p>
+      
+      <p>For business account queries, contact: business@yourcompany.com</p>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail({
+    to: email,
+    subject: 'Business Booking Confirmed - No Payment Required',
+    html: emailContent
+  });
+};
+
+const sendPrivateBookingConfirmation = async (email, bookingData) => {
+  const emailContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        .private-badge { background: #059669; color: white; padding: 4px 12px; border-radius: 4px; }
+        .booking-details { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <h2>Booking Confirmed</h2>
+      <span class="private-badge">PRIVATE BOOKING</span>
+      
+      <div class="booking-details">
+        <h3>Booking Details</h3>
+        <p><strong>Booking ID:</strong> ${bookingData._id}</p>
+        <p><strong>Vehicle:</strong> ${bookingData.car.make} ${bookingData.car.model}</p>
+        <p><strong>License Number:</strong> ${bookingData.car.licenseNumber}</p>
+        <p><strong>Start:</strong> ${bookingData.startTimeFormatted}</p>
+        <p><strong>End:</strong> ${bookingData.endTimeFormatted}</p>
+        <p><strong>Total Amount:</strong> $${bookingData.totalAmount}</p>
+      </div>
+      
+      <p><strong>Payment Status:</strong> ${bookingData.paymentStatus}</p>
+      
+      <p>Thank you for your booking!</p>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail({
+    to: email,
+    subject: 'Booking Confirmed',
+    html: emailContent
+  });
+};
+
+const sendPaymentConfirmation = async (email, paymentData) => {
+  const emailContent = `
+    <!DOCTYPE html>
+    <html>
+    <body>
+      <h2>Payment Received</h2>
+      
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3>Payment Details</h3>
+        <p><strong>Booking ID:</strong> ${paymentData.bookingId}</p>
+        <p><strong>Amount Paid:</strong> $${paymentData.amount}</p>
+        <p><strong>Payment Date:</strong> ${new Date(paymentData.paymentDate).toLocaleString()}</p>
+        <p><strong>Vehicle:</strong> ${paymentData.carDetails}</p>
+        <p><strong>Booking Period:</strong> ${new Date(paymentData.startTime).toLocaleString()} - ${new Date(paymentData.endTime).toLocaleString()}</p>
+      </div>
+      
+      <p>Your payment has been successfully processed. Your booking is confirmed!</p>
+      <p>Receipt will be available in your account dashboard.</p>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail({
+    to: email,
+    subject: 'Payment Confirmed - Booking Active',
+    html: emailContent
+  });
+};
+
+const sendPaymentFailedEmail = async (email, errorData) => {
+  const emailContent = `
+    <!DOCTYPE html>
+    <html>
+    <body>
+      <h2 style="color: #dc2626;">Payment Failed</h2>
+      
+      <p>We were unable to process your payment for booking <strong>${errorData.bookingId}</strong>.</p>
+      
+      <p><strong>Error:</strong> ${errorData.errorMessage}</p>
+      
+      <p>Please try again or use a different payment method.</p>
+      <p>Your booking will be held for 24 hours pending payment.</p>
+      
+      <a href="${process.env.FRONTEND_URL}/bookings/${errorData.bookingId}/payment" 
+         style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px;">
+        Retry Payment
+      </a>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail({
+    to: email,
+    subject: 'Payment Failed - Action Required',
+    html: emailContent
+  });
+};
+
+const generateInvoice = async (bookingData) => {
+  
+  return {
+    invoiceNumber: `INV-${bookingData._id}-${Date.now()}`,
+    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
+    items: [
+      {
+        description: `Car Rental: ${bookingData.car.make} ${bookingData.car.model}`,
+        quantity: 1,
+        unitPrice: bookingData.totalAmount,
+        total: bookingData.totalAmount
+      }
+    ],
+    subtotal: bookingData.totalAmount,
+    tax: 0,
+    total: bookingData.totalAmount
+  };
+};
+
 module.exports = {
   testConnection,
   sendWelcomeEmail,
   sendEmailVerification,
   sendBookingConfirmation,
-  sendCancellationEmail
+  sendCancellationEmail,
+  sendBusinessBookingConfirmation,
+  sendPrivateBookingConfirmation,
+  sendPaymentConfirmation,
+  sendPaymentFailedEmail,
+  generateInvoice
 };

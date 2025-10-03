@@ -40,7 +40,7 @@ const bookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
+     enum: ['pending', 'pending_payment', 'confirmed', 'upcoming', 'ongoing', 'completed', 'cancelled'],
       default: 'upcoming',
     },
     isStarted: {
@@ -66,7 +66,7 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    companycut: {
+    companyCut: {
       type: Number,
       default: 0
     },
@@ -81,10 +81,30 @@ const bookingSchema = new mongoose.Schema(
     stripePaymentId: {
       type: String,
       default: 'stripePayment'
-    }
-  },
-  {
-    timestamps: true,
+    },
+    stripePaymentIntentId: {
+  type: String,
+  default: null
+},
+paidAt: {
+  type: Date,
+  default: null
+},
+refundedAmount: {
+  type: Number,
+  default: 0
+},
+refundedAt: {
+  type: Date,
+  default: null
+},
+refundReason: {
+  type: String,
+  default: null
+}
+},
+{
+  timestamps: true,
     toJSON: {
       virtuals: true,
       versionKey: false,

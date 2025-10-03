@@ -75,7 +75,11 @@ const bookCar = async (req, res, next) => {
       }
     };
 
-    await emailService.sendBookingConfirmation(req.user.email, responseBooking);
+    if (booking.bookingType === 'business') {
+      await emailService.sendBusinessBookingConfirmation(req.user.email, responseBooking);
+    } else {
+      await emailService.sendPrivateBookingConfirmation(req.user.email, responseBooking);
+    }
 
     if (result.paymentIntent) {
       return res.status(201).json({
@@ -279,6 +283,12 @@ const bookGroupCar = async (req, res, next) => {
       startTimeFormatted: formatDateForDisplay(booking.startTime, userTimezone),
       endTimeFormatted: formatDateForDisplay(booking.endTime, userTimezone)
     };
+
+    if (booking.bookingType === 'business') {
+      await emailService.sendBusinessBookingConfirmation(req.user.email, responseBooking);
+    } else {
+      await emailService.sendPrivateBookingConfirmation(req.user.email, responseBooking);
+    }
 
     if (result.paymentIntent) {
       return res.status(201).json({

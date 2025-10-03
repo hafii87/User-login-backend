@@ -18,12 +18,17 @@ const calculatePayment = (type, durationHours, pricePerHour, companyPercentage, 
   let paymentStatus = 'pending';
 
   if (type === 'business') {
+    totalAmount = 0;
+    companyCut = 0;
+    groupOwnerCut = 0;
+    carOwnerAmount = 0;
     paymentStatus = 'free';
   } else {
-    totalAmount = pricePerHour * durationHours;
-    companyCut = (totalAmount * companyPercentage) / 100;
-    groupOwnerCut = (totalAmount * groupOwnerPercentage) / 100;
-    carOwnerAmount = totalAmount - companyCut - groupOwnerCut;
+    totalAmount = Math.round(pricePerHour * durationHours * 100) / 100;
+    companyCut = Math.round((totalAmount * companyPercentage) / 100 * 100) / 100;
+    groupOwnerCut = Math.round((totalAmount * groupOwnerPercentage) / 100 * 100) / 100;
+    carOwnerAmount = Math.round((totalAmount - companyCut - groupOwnerCut) * 100) / 100;
+    paymentStatus = 'pending';
   }
 
   return { totalAmount, companyCut, groupOwnerCut, carOwnerAmount, paymentStatus };
@@ -33,6 +38,7 @@ const bookCar = async (bookingData) => {
   const { user: userId, car: carId, startTime, endTime, bookingTimezone, bookingType } = bookingData;
   console.log('[bookCar] bookingData:', bookingData);
   console.log('[bookCar] userId:', userId);
+  
   if (!userId || typeof userId !== 'string' || userId.length < 10) {
     throw new Error('Invalid or missing userId for booking creation');
   }
@@ -44,6 +50,7 @@ const bookCar = async (bookingData) => {
 
   const preferences = car.bookingPreferences || {};
   const durationHours = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
+  
   if (durationHours < (preferences.minBookingHours || 1))
     throw new Error(`Minimum booking duration is ${preferences.minBookingHours || 1} hours`);
 
@@ -57,12 +64,17 @@ const bookCar = async (bookingData) => {
   const { totalAmount, companyCut, groupOwnerCut, carOwnerAmount, paymentStatus } =
     calculatePayment(type, durationHours, pricePerHour, companyPercentage);
 
+  let initialStatus = 'pending_payment';
+  if (type === 'business') {
+    initialStatus = 'confirmed';
+  }
+
   const booking = await bookingWrapper.createBooking({
     user: userId,
     car: carId,
     startTime: new Date(startTime),
     endTime: new Date(endTime),
-    status: 'upcoming',
+    status: initialStatus,
     bookingTimezone,
     bookingType: type,
     totalAmount,
@@ -72,11 +84,40 @@ const bookCar = async (bookingData) => {
     paymentStatus
   });
 
-  console.log('[bookCar] Created booking:', JSON.stringify(booking, null, 2));
+  console.log('[bookCar] Created booking:', booking._id, 'Status:', booking.status);
 
   if (type === 'private' && totalAmount > 0) {
-    const paymentIntent = await stripeService.createPaymentIntent(booking._id.toString(), userId);
-    return { booking, paymentIntent };
+    try {
+      const paymentIntent = await stripeService.createPaymentIntent({
+        bookingId: booking._id.toString(),
+        userId: userId,
+        amount: totalAmount,
+        carDetails: {
+          make: booking.car.make,
+          model: booking.car.model,
+          year: booking.car.year
+        }
+      });
+
+      await bookingWrapper.updateBooking(booking._id, {
+        stripePaymentIntentId: paymentIntent.id
+      });
+
+      return {
+        booking,
+        paymentIntent: {
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          amount: totalAmount
+        }
+      };
+    } catch (error) {
+      await bookingWrapper.updateBooking(booking._id, {
+        status: 'cancelled',
+        paymentStatus: 'failed'
+      });
+      throw new Error(`Payment creation failed: ${error.message}`);
+    }
   }
 
   return { booking };
@@ -97,6 +138,14 @@ const cancelBooking = async (bookingId, userId) => {
   const bookingUserId = booking.user && (booking.user._id ? booking.user._id.toString() : booking.user.toString());
   if (!bookingUserId) throw new Error('Booking user is missing');
   if (bookingUserId !== userId.toString()) throw new Error('You can only cancel your own bookings');
+
+  if (booking.stripePaymentIntentId && booking.paymentStatus === 'pending') {
+    try {
+      await stripeService.cancelPaymentIntent(booking.stripePaymentIntentId);
+    } catch (error) {
+      console.error('[cancelBooking] Failed to cancel Stripe payment:', error.message);
+    }
+  }
 
   return await bookingWrapper.cancelBooking(bookingId);
 };
@@ -189,13 +238,18 @@ const bookGroupCar = async (bookingData) => {
   const { totalAmount, companyCut, groupOwnerCut, carOwnerAmount, paymentStatus } =
     calculatePayment(type, durationHours, pricePerHour, companyPercentage, groupOwnerPercentage);
 
+  let initialStatus = 'pending_payment';
+  if (type === 'business') {
+    initialStatus = group.preferences.autoApproveBookings ? 'confirmed' : 'pending';
+  }
+
   const booking = await bookingWrapper.createBooking({
     user: userId,
     car: carId,
     group: groupId,
     startTime: new Date(startTime),
     endTime: new Date(endTime),
-    status: group.preferences.autoApproveBookings ? 'upcoming' : 'pending',
+    status: initialStatus,
     bookingTimezone,
     bookingType: type,
     totalAmount,
@@ -206,8 +260,37 @@ const bookGroupCar = async (bookingData) => {
   });
 
   if (type === 'private' && totalAmount > 0) {
-    const paymentIntent = await stripeService.createPaymentIntent(booking._id.toString(), userId);
-    return { booking, paymentIntent };
+    try {
+      const paymentIntent = await stripeService.createPaymentIntent({
+        bookingId: booking._id.toString(),
+        userId: userId,
+        amount: totalAmount,
+        carDetails: {
+          make: booking.car.make,
+          model: booking.car.model,
+          year: booking.car.year
+        }
+      });
+
+      await bookingWrapper.updateBooking(booking._id, {
+        stripePaymentIntentId: paymentIntent.id
+      });
+
+      return {
+        booking,
+        paymentIntent: {
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          amount: totalAmount
+        }
+      };
+    } catch (error) {
+      await bookingWrapper.updateBooking(booking._id, {
+        status: 'cancelled',
+        paymentStatus: 'failed'
+      });
+      throw new Error(`Payment creation failed: ${error.message}`);
+    }
   }
 
   return { booking };
