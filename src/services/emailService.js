@@ -76,37 +76,152 @@ const sendBookingConfirmation = async (userEmail, bookingData) => {
 };
 
 const sendCancellationEmail = async (userEmail, bookingData) => {
-  const refundInfo = bookingData.paymentStatus === 'refunded' ? `
-    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 15px;">
-      <p style="margin: 0;"><strong>✅ Refund Processed</strong></p>
-      <p style="margin: 5px 0 0 0;"><strong>Amount:</strong> ${bookingData.refundedAmount?.toFixed(2) || '0.00'}</p>
-      <p style="margin: 5px 0 0 0;">The refund will appear in your account within 5-10 business days.</p>
-    </div>
-  ` : bookingData.paymentStatus === 'pending' ? `
-    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 15px;">
-      <p style="margin: 0;"><strong>💳 No Payment Required</strong></p>
-      <p style="margin: 5px 0 0 0;">Your booking was cancelled before payment was completed.</p>
-    </div>
-  ` : '';
+  let refundInfo = '';
+  
+  if (bookingData.paymentStatus === 'refunded' && bookingData.refundedAmount > 0) {
+    refundInfo = `
+      <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 20px;">
+        <h3 style="color: #2e7d32; margin: 0 0 10px 0;"> Refund Processed Successfully</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 5px 0;"><strong>Refund Amount:</strong></td>
+            <td style="padding: 5px 0; text-align: right; font-size: 18px; color: #2e7d32;">
+              <strong>$${bookingData.refundedAmount?.toFixed(2) || '0.00'}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Processed On:</strong></td>
+            <td style="padding: 5px 0; text-align: right;">
+              ${bookingData.refundedAt ? new Date(bookingData.refundedAt).toLocaleString() : 'Just now'}
+            </td>
+          </tr>
+          ${bookingData.refundReason ? `
+          <tr>
+            <td style="padding: 5px 0;"><strong>Reason:</strong></td>
+            <td style="padding: 5px 0; text-align: right;">${bookingData.refundReason}</td>
+          </tr>
+          ` : ''}
+        </table>
+        <div style="background: #fff; padding: 12px; border-radius: 6px; margin-top: 15px;">
+          <p style="margin: 0; font-size: 14px; color: #666;">
+            <strong>⏱️ Processing Time:</strong> The refund will appear in your account within <strong>5-10 business days</strong> depending on your payment provider.
+          </p>
+        </div>
+      </div>
+    `;
+  } 
+  else if (bookingData.paymentStatus === 'pending' || bookingData.paymentStatus === 'pending_payment') {
+    refundInfo = `
+      <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 20px;">
+        <h3 style="color: #f57c00; margin: 0 0 10px 0;">💳 No Payment Required</h3>
+        <p style="margin: 0; color: #666;">
+          Your booking was cancelled before payment was completed. No charges were made to your account.
+        </p>
+      </div>
+    `;
+  }
+  else if (bookingData.paymentStatus === 'free' || bookingData.bookingType === 'business') {
+    refundInfo = `
+      <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196f3; margin-top: 20px;">
+        <h3 style="color: #1976d2; margin: 0 0 10px 0;">💼 Business Booking</h3>
+        <p style="margin: 0; color: #666;">
+          This was a business booking with no payment required. No refund is applicable.
+        </p>
+      </div>
+    `;
+  } else if (bookingData.paymentStatus === 'paid') {
+  else if (bookingData.paymentStatus === 'paid') {
+    refundInfo = `
+      <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-top: 20px;">
+        <h3 style="color: #c62828; margin: 0 0 10px 0;"> Refund Not Processed</h3>
+        <p style="margin: 0 0 10px 0; color: #666;">
+          Your booking was cancelled, but the refund could not be processed automatically.
+        </p>
+        <p style="margin: 0; color: #666;">
+          <strong>Next Steps:</strong> Our support team will review your case and process a manual refund within 24-48 hours.
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+          Contact us at: <strong>support@carrentals.com</strong>
+        </p>
+      </div>
+    `;
+  }
 
   return await sendEmail({
     to: userEmail,
     subject: 'Booking Cancelled Successfully',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #dc2626;">Booking Cancelled</h2>
-        <p>Your booking has been cancelled successfully.</p>
-        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px;">
-          <p><strong>Car:</strong> ${bookingData.car?.make || 'N/A'} ${bookingData.car?.model || 'N/A'}</p>
-          <p><strong>License Number:</strong> ${bookingData.car?.licenseNumber || 'Not Available'}</p>
-          <p><strong>Booking ID:</strong> ${bookingData.id || bookingData._id}</p>
-          <p><strong>Original Start Time:</strong> ${bookingData.startTimeFormatted || 'N/A'}</p>
-          <p><strong>Original End Time:</strong> ${bookingData.endTimeFormatted || 'N/A'}</p>
-          <p><strong>Status:</strong> <span style="color: #dc2626; font-weight: bold;">Cancelled</span></p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
+        <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #dc2626; margin: 0 0 10px 0; font-size: 28px;">Booking Cancelled</h1>
+            <p style="color: #666; margin: 0; font-size: 16px;">Your booking has been cancelled successfully.</p>
+          </div>
+
+          <!-- Booking Details -->
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #333; margin: 0 0 15px 0; font-size: 18px;">📋 Booking Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>Booking ID:</strong></td>
+                <td style="padding: 8px 0; text-align: right; font-family: monospace;">
+                  ${bookingData.id || bookingData._id}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>Vehicle:</strong></td>
+                <td style="padding: 8px 0; text-align: right;">
+                  ${bookingData.car?.make || 'N/A'} ${bookingData.car?.model || 'N/A'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>License Number:</strong></td>
+                <td style="padding: 8px 0; text-align: right; font-weight: bold;">
+                  ${bookingData.car?.licenseNumber || 'Not Available'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>Start Time:</strong></td>
+                <td style="padding: 8px 0; text-align: right;">
+                  ${bookingData.startTimeFormatted || 'N/A'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>End Time:</strong></td>
+                <td style="padding: 8px 0; text-align: right;">
+                  ${bookingData.endTimeFormatted || 'N/A'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-top: 2px solid #ddd; padding-top: 12px; color: #666;">
+                  <strong>Status:</strong>
+                </td>
+                <td style="padding: 8px 0; border-top: 2px solid #ddd; padding-top: 12px; text-align: right;">
+                  <span style="background: #dc2626; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 14px;">
+                    CANCELLED
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Refund Information -->
+          ${refundInfo}
+
+          <!-- Footer -->
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e0e0e0; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #333; font-size: 16px;">
+              <strong>You can book again anytime! 🚗</strong>
+            </p>
+            <p style="margin: 0; color: #999; font-size: 14px;">
+              If you have any questions, please contact our support team at
+              <a href="mailto:support@carrentals.com" style="color: #2563eb; text-decoration: none;">
+                support@carrentals.com
+              </a>
+            </p>
+          </div>
         </div>
-        ${refundInfo}
-        <p style="margin-top: 20px;">You can book again anytime!</p>
-        <p style="color: #666; font-size: 14px;">If you have any questions, please contact our support team.</p>
       </div>
     `
   });
@@ -125,7 +240,7 @@ const sendEmailVerification = async (userEmail, userData) => {
           <h3>📧 Email Verification Required</h3>
           <p>Please click the button below to verify your email address:</p>
           <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #2c5aa0; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0;">
-            ✅ Verify Email Address
+             Verify Email Address
           </a>
           <p><small>Or copy this link: ${verificationUrl}</small></p>
         </div>
@@ -227,7 +342,7 @@ const sendRefundConfirmation = async (email, refundData) => {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #059669;">Refund Processed</h2>
         <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4caf50;">
-          <h3 style="color: #333; margin-top: 0;">✅ Refund Details</h3>
+          <h3 style="color: #333; margin-top: 0;"> Refund Details</h3>
           <p><strong>Booking ID:</strong> ${refundData.bookingId}</p>
           <p><strong>Refund Amount:</strong> $${refundData.amount?.toFixed(2) || '0.00'}</p>
           <p><strong>Refund Date:</strong> ${new Date(refundData.refundedAt).toLocaleString()}</p>
