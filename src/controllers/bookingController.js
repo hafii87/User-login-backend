@@ -185,6 +185,13 @@ const cancelBooking = async (req, res, next) => {
     const booking = await bookingService.getBookingById(bookingId);
     if (!booking) return next(new AppError('Booking not found', 404));
 
+    const now = new Date();
+    const bookingStartTime = new Date(booking.startTime);
+    
+    if (now >= bookingStartTime) {
+      return next(new AppError('Booking already started — cannot be cancelled.', 400));
+    }
+
     if (booking.status === 'ongoing') {
       return next(new AppError('Cannot cancel an ongoing booking', 400));
     }
@@ -200,21 +207,25 @@ const cancelBooking = async (req, res, next) => {
       return next(new AppError('You can only cancel your own bookings', 403));
     }
 
-    const now = new Date();
-    const bookingStartTime = new Date(booking.startTime);
     const isBeforeStart = now < bookingStartTime;
     let refundProcessed = false;
 
     if (isBeforeStart && booking.paymentStatus === 'paid' && booking.stripePaymentIntentId) {
       try {
+        console.log(`[Refund] Initiating refund for booking ${bookingId}`);
+        
         const refundResult = await stripeService.refundPayment(booking.stripePaymentIntentId, booking._id);
+        
         booking.paymentStatus = 'refunded';
         booking.refundedAmount = refundResult.amount / 100;
         booking.refundedAt = new Date();
         booking.refundReason = 'Booking cancelled before start time';
+        booking.refundId = refundResult.id;
         refundProcessed = true;
+        
+        console.log(`[Refund]  Successfully processed: $${booking.refundedAmount}`);
       } catch (refundError) {
-        console.error('Refund failed:', refundError.message);
+        console.error('[Refund]  Failed:', refundError.message);
       }
     }
 
@@ -245,7 +256,7 @@ const cancelBooking = async (req, res, next) => {
 
     let message = 'Booking cancelled successfully. Confirmation email sent!';
     if (refundProcessed) {
-      message = 'Booking cancelled successfully. Refund processed. Confirmation email sent!';
+      message = `Booking cancelled and refund of $${booking.refundedAmount.toFixed(2)} processed successfully. Confirmation email sent!`;
     }
 
     res.status(200).json({ 
@@ -275,7 +286,10 @@ const extendBooking = async (req, res, next) => {
     const booking = await bookingService.getBookingById(bookingId);
     if (!booking) return next(new AppError('Booking not found', 404));
 
+    const oldEndTime = new Date(booking.endTime);
     const userTimezone = booking.bookingTimezone || 'Asia/Karachi';
+    const oldEndTimeFormatted = formatDateForDisplay(oldEndTime, userTimezone);
+
     const newEndTimeUTC = convertToUTC(newEndTime, userTimezone);
     
     if (new Date(newEndTimeUTC) <= new Date(booking.endTime)) {
@@ -311,10 +325,15 @@ const extendBooking = async (req, res, next) => {
       return next(new AppError('Car already booked during extended period', 400));
     }
 
+    const additionalHours = (new Date(newEndTimeUTC) - oldEndTime) / (1000 * 60 * 60);
+    const pricePerHour = car.pricePerHour || 10;
+    const additionalCost = booking.bookingType === 'business' ? 0 : additionalHours * pricePerHour;
+
     const updatedBooking = await bookingService.extendBooking(bookingId, req.user.id, newEndTimeUTC);
 
     await agenda.cancel({ "data.bookingId": bookingId, name: "end booking" });
     await agenda.cancel({ "data.bookingId": bookingId, name: "booking reminder end" });
+    
     await agenda.schedule(new Date(newEndTimeUTC), "end booking", { bookingId, carId: booking.car._id || booking.car });
     
     const newReminderEndTime = new Date(new Date(newEndTimeUTC).getTime() - 10 * 60 * 1000);
@@ -330,12 +349,22 @@ const extendBooking = async (req, res, next) => {
       startTimeLocal: convertFromUTC(updatedBooking.startTime, userTimezone),
       endTimeLocal: convertFromUTC(updatedBooking.endTime, userTimezone),
       startTimeFormatted: formatDateForDisplay(updatedBooking.startTime, userTimezone),
-      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone)
+      endTimeFormatted: formatDateForDisplay(updatedBooking.endTime, userTimezone),
+      oldEndTimeFormatted: oldEndTimeFormatted,
+      additionalHours: Math.round(additionalHours * 10) / 10,
+      additionalCost: Math.round(additionalCost * 100) / 100
     };
+
+    try {
+      await emailService.sendBookingExtensionEmail(req.user.email, responseBooking);
+      console.log(`[Extend]  Extension email sent to ${req.user.email}`);
+    } catch (emailError) {
+      console.error('[Extend]  Failed to send extension email:', emailError.message);
+    }
 
     res.status(200).json({ 
       success: true, 
-      message: 'Booking extended successfully', 
+      message: 'Booking extended successfully. Confirmation email sent!', 
       data: responseBooking 
     });
   } catch (error) {

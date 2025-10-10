@@ -113,7 +113,7 @@ const sendCancellationEmail = async (userEmail, bookingData) => {
   else if (bookingData.paymentStatus === 'pending' || bookingData.paymentStatus === 'pending_payment') {
     refundInfo = `
       <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 20px;">
-        <h3 style="color: #f57c00; margin: 0 0 10px 0;">💳 No Payment Required</h3>
+        <h3 style="color: #f57c00; margin: 0 0 10px 0;"> No Payment Required</h3>
         <p style="margin: 0; color: #666;">
           Your booking was cancelled before payment was completed. No charges were made to your account.
         </p>
@@ -129,7 +129,7 @@ const sendCancellationEmail = async (userEmail, bookingData) => {
         </p>
       </div>
     `;
-  } else if (bookingData.paymentStatus === 'paid') {
+  } 
   else if (bookingData.paymentStatus === 'paid') {
     refundInfo = `
       <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-top: 20px;">
@@ -153,13 +153,11 @@ const sendCancellationEmail = async (userEmail, bookingData) => {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
         <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <!-- Header -->
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #dc2626; margin: 0 0 10px 0; font-size: 28px;">Booking Cancelled</h1>
             <p style="color: #666; margin: 0; font-size: 16px;">Your booking has been cancelled successfully.</p>
           </div>
 
-          <!-- Booking Details -->
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="color: #333; margin: 0 0 15px 0; font-size: 18px;">📋 Booking Details</h3>
             <table style="width: 100%; border-collapse: collapse;">
@@ -206,10 +204,8 @@ const sendCancellationEmail = async (userEmail, bookingData) => {
             </table>
           </div>
 
-          <!-- Refund Information -->
           ${refundInfo}
 
-          <!-- Footer -->
           <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e0e0e0; text-align: center;">
             <p style="margin: 0 0 10px 0; color: #333; font-size: 16px;">
               <strong>You can book again anytime! 🚗</strong>
@@ -440,6 +436,86 @@ const sendBookingReminderEnd = async (userEmail, bookingData) => {
   });
 };
 
+const sendBookingExtensionEmail = async (userEmail, bookingData) => {
+  const additionalHours = bookingData.additionalHours || 0;
+  const additionalCost = bookingData.additionalCost || 0;
+
+  return await sendEmail({
+    to: userEmail,
+    subject: 'Booking Extended Successfully',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
+        <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #059669; margin: 0 0 10px 0; font-size: 28px;"> Booking Extended!</h1>
+            <p style="color: #666; margin: 0; font-size: 16px;">Your booking has been extended successfully!</p>
+          </div>
+
+          <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+            <h2 style="margin: 0 0 10px 0; font-size: 24px;">Extension Confirmed!</h2>
+            <p style="margin: 0; font-size: 16px; opacity: 0.9;">
+              You now have <strong>${additionalHours} additional hours</strong> with your vehicle
+            </p>
+          </div>
+
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #333; margin: 0 0 15px 0; font-size: 18px;">📋 Updated Booking Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>Car:</strong></td>
+                <td style="padding: 8px 0; text-align: right;">
+                  ${bookingData.car?.make || 'N/A'} ${bookingData.car?.model || 'N/A'} (${bookingData.car?.year || 'N/A'})
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>License:</strong></td>
+                <td style="padding: 8px 0; text-align: right;">
+                  ${bookingData.car?.licenseNumber || 'N/A'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>Previous End:</strong></td>
+                <td style="padding: 8px 0; text-align: right; text-decoration: line-through; color: #999;">
+                  ${bookingData.oldEndTimeFormatted || 'N/A'}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>New End:</strong></td>
+                <td style="padding: 8px 0; text-align: right; color: #059669; font-weight: bold; font-size: 16px;">
+                  ${bookingData.endTimeFormatted || 'N/A'}
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          ${additionalCost > 0 ? `
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0;"><strong>💳 Extension Cost:</strong> ${additionalCost.toFixed(2)}</p>
+          </div>
+          ` : `
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0;"><strong> No Additional Payment Required</strong></p>
+          </div>
+          `}
+
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #333; font-size: 16px;">
+              <strong>Enjoy your extended trip! 🚗💨</strong>
+            </p>
+            <p style="margin: 0; color: #999; font-size: 14px;">
+              Contact support: 
+              <a href="mailto:support@carrentals.com" style="color: #2563eb; text-decoration: none;">
+                support@carrentals.com
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    `
+  });
+};
+
 module.exports = {
   testConnection,
   sendEmail,
@@ -454,5 +530,6 @@ module.exports = {
   sendRefundConfirmation,
   generateInvoice,
   sendBookingReminderStart,
-  sendBookingReminderEnd
+  sendBookingReminderEnd,
+  sendBookingExtensionEmail  
 };
